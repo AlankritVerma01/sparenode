@@ -36,10 +36,13 @@ func BuildRunArgs(job Job) ([]string, error) {
 		args = append(args, "--gpus", "all", "--label", "dev.sparenode.gpu=true")
 	}
 	if job.Workspace != "" {
-		workspace, err := filepath.Abs(job.Workspace)
-		if err != nil {
-			return nil, fmt.Errorf("resolve workspace: %w", err)
+		if !filepath.IsAbs(job.Workspace) {
+			return nil, fmt.Errorf("workspace path must be absolute: %q", job.Workspace)
 		}
+		if strings.Contains(job.Workspace, ",") {
+			return nil, fmt.Errorf("workspace path cannot contain a comma: %q", job.Workspace)
+		}
+		workspace := filepath.Clean(job.Workspace)
 		args = append(args, "--mount", "type=bind,source="+workspace+",target=/workspace", "--workdir", "/workspace")
 	}
 	args = append(args, job.Image)
@@ -91,6 +94,22 @@ func Logs(ctx context.Context, runner execx.Runner, name string) (string, error)
 	output, err := runner.Run(ctx, "docker", "logs", id)
 	if err != nil {
 		return "", fmt.Errorf("read job logs: %s: %w", output, err)
+	}
+	return output, nil
+}
+
+func Exec(ctx context.Context, runner execx.Runner, name string, command []string) (string, error) {
+	if len(command) == 0 {
+		return "", fmt.Errorf("exec requires a command")
+	}
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
+		return "", err
+	}
+	args := append([]string{"exec", id}, command...)
+	output, err := runner.Run(ctx, "docker", args...)
+	if err != nil {
+		return "", fmt.Errorf("execute in job: %s: %w", output, err)
 	}
 	return output, nil
 }

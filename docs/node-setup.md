@@ -1,7 +1,7 @@
 # Node setup
 
-This document describes the current prototype. SpareNode does not yet ship a
-node installer or binary releases.
+This document describes the current prototype. SpareNode publishes versioned
+binaries, but does not yet ship a node installer.
 
 ## Requirements
 
@@ -10,7 +10,9 @@ node installer or binary releases.
 - The SpareNode binary available as `spare` in the remote user's `PATH`
 - For GPU jobs, a working NVIDIA driver and NVIDIA Container Toolkit
 
-Build and install the current checkout:
+Install the matching Linux archive from
+[GitHub Releases](https://github.com/AlankritVerma01/sparenode/releases), or
+build and install the current checkout:
 
 ```console
 make check
@@ -46,6 +48,14 @@ Then use the client transport:
 
 ```console
 spare --host dev@gpu-node doctor --data-path /data
+```
+
+Workspace paths belong to the node, not the client. For example, a repository
+at `/srv/project` on the node can back a long-running development container:
+
+```console
+spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --workspace /srv/project sleep infinity
+spare --host dev@gpu-node exec dev git status
 ```
 
 For remote internet access, place the node on an authenticated private network

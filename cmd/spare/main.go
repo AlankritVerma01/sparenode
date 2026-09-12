@@ -95,6 +95,20 @@ func runLocal(args []string) error {
 		}
 		fmt.Println(output)
 		return nil
+	case "exec":
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		if len(args) < 3 {
+			return errors.New("exec requires a job name and command")
+		}
+		output, err := container.Exec(ctx, runner, args[1], args[2:])
+		if err != nil {
+			return err
+		}
+		if output != "" {
+			fmt.Println(output)
+		}
+		return nil
 	case "stop":
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -222,6 +236,7 @@ Usage:
   spare run --name NAME --image IMAGE [--gpu] [--workspace PATH] [COMMAND...]
   spare jobs
   spare logs NAME
+  spare exec NAME COMMAND...
   spare stop NAME
   spare remove NAME
   spare version [--json]

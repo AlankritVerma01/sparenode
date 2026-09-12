@@ -34,8 +34,10 @@ spare doctor --data-path "$HOME/Data"
 spare doctor --json --data-path "$HOME/Data"
 spare run --name hello --image alpine:latest echo hello
 spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
+spare run --name dev --image ubuntu:24.04 --workspace /srv/project sleep infinity
 spare jobs
 spare logs cuda-check
+spare exec dev git status
 spare stop cuda-check
 spare remove cuda-check
 ```
@@ -46,6 +48,7 @@ Run the same commands on a node already configured in OpenSSH:
 spare --host dev@gpu-node doctor --data-path /data
 spare --host dev@gpu-node run --name hello --image alpine:latest echo hello
 spare --host dev@gpu-node logs hello
+spare --host dev@gpu-node exec dev git status
 ```
 
 SpareNode delegates authentication, host verification, proxies, and private
@@ -59,6 +62,11 @@ Docker. That permission is intentionally not automated by SpareNode.
 
 Only containers carrying the `dev.sparenode.managed=true` label appear in
 `spare jobs`.
+
+`--workspace` must be an absolute path on the node, including when the command
+is sent from a remote client. It is bind-mounted at `/workspace`; Docker
+therefore gives the container the same access to that directory as the node
+account. SpareNode never mounts a path implicitly.
 
 ## Build and test
 
