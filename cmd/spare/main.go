@@ -15,7 +15,10 @@ import (
 	"github.com/AlankritVerma01/sparenode/internal/remote"
 )
 
-const version = "0.1.0-dev"
+var (
+	version = "dev"
+	commit  = "unknown"
+)
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -117,14 +120,32 @@ func runLocal(args []string) error {
 		fmt.Printf("Removed %s\n", name)
 		return nil
 	case "version", "--version", "-v":
-		fmt.Println(version)
-		return nil
+		return runVersion(args[1:])
 	case "help", "--help", "-h":
 		usage()
 		return nil
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func runVersion(args []string) error {
+	flags := flag.NewFlagSet("version", flag.ContinueOnError)
+	jsonOutput := flags.Bool("json", false, "emit JSON")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("version does not accept positional arguments")
+	}
+	if *jsonOutput {
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Version string `json:"version"`
+			Commit  string `json:"commit"`
+		}{Version: version, Commit: commit})
+	}
+	fmt.Printf("SpareNode %s (commit %s)\n", version, commit)
+	return nil
 }
 
 func requireJobName(command string, args []string) (string, error) {
@@ -203,6 +224,6 @@ Usage:
   spare logs NAME
   spare stop NAME
   spare remove NAME
-  spare version
+  spare version [--json]
 `)
 }

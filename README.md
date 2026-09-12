@@ -6,13 +6,30 @@
 SpareNode is an open-source tool for turning a spare Linux computer into a
 private development and GPU compute node.
 
-The project is deliberately small today. The first milestone validates the
-host and launches explicitly managed Docker jobs. Remote access, sharing, and
-a graphical control plane come after the local execution boundary is reliable.
+The project is deliberately small today. It validates a node, launches
+explicitly managed Docker jobs, and controls them through an existing OpenSSH
+connection. Sharing and a graphical control plane come after this CLI workflow
+is reliable across separate machines.
+
+## Install
+
+Download the archive for your Linux node or Mac client from
+[GitHub Releases](https://github.com/AlankritVerma01/sparenode/releases). Extract
+it, then place `spare` somewhere in your `PATH`. The project does not publish a
+remote install script.
+
+Build from source with Go 1.27 or newer:
+
+```console
+make check
+make build
+sudo install -o root -g root -m 0755 bin/spare /usr/local/bin/spare
+```
 
 ## Current commands
 
 ```console
+spare version --json
 spare doctor --data-path "$HOME/Data"
 spare doctor --json --data-path "$HOME/Data"
 spare run --name hello --image alpine:latest echo hello
@@ -74,8 +91,9 @@ SpareNode management label.
 ## Status
 
 SpareNode is an early working prototype. Local NVIDIA GPU jobs have been
-validated end to end on the reference Linux node. OpenSSH transport is
-implemented; automated node installation and a stable release process are not.
+validated end to end on the reference Linux node. OpenSSH transport and
+prerelease automation are implemented; automated node installation and a
+stable release are not.
 
 ## Product boundary
 
