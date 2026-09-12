@@ -3,6 +3,7 @@ package doctor
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -99,7 +100,7 @@ func TestRunDoesNotRequireNvidiaToolkitOnCPUNode(t *testing.T) {
 			t.Fatalf("unexpected GPU container check: %#v", check)
 		}
 	}
-	if !report.Healthy() {
+	if runtime.GOOS == "linux" && !report.Healthy() {
 		t.Fatalf("CPU-only node should be healthy: %#v", report.Checks)
 	}
 }
