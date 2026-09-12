@@ -1,6 +1,36 @@
 package doctor
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+)
+
+type commandResult struct {
+	output string
+	err    error
+}
+
+type fakeRunner struct {
+	paths   map[string]bool
+	results map[string]commandResult
+}
+
+func (f fakeRunner) LookPath(file string) (string, error) {
+	if f.paths[file] {
+		return file, nil
+	}
+	return "", errors.New("not found")
+}
+
+func (f fakeRunner) Run(_ context.Context, name string, args ...string) (string, error) {
+	result, exists := f.results[name+" "+strings.Join(args, " ")]
+	if !exists {
+		return "", errors.New("unexpected command")
+	}
+	return result.output, result.err
+}
 
 func TestParseNvidiaSMI(t *testing.T) {
 	input := "0, NVIDIA GeForce GTX 1650, GPU-abc, 4096, 610.57.04"
@@ -27,5 +57,62 @@ func TestParseDF(t *testing.T) {
 	}
 	if storage.SizeBytes != 1000 || storage.AvailableBytes != 750 {
 		t.Fatalf("unexpected storage: %#v", storage)
+	}
+}
+
+func TestHasNvidiaRuntime(t *testing.T) {
+	configured, err := HasNvidiaRuntime(`{"runc":{"path":"runc"},"nvidia":{"path":"nvidia-container-runtime"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !configured {
+		t.Fatal("expected NVIDIA runtime")
+	}
+}
+
+func TestHasNvidiaRuntimeMissing(t *testing.T) {
+	configured, err := HasNvidiaRuntime(`{"runc":{"path":"runc"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if configured {
+		t.Fatal("did not expect NVIDIA runtime")
+	}
+}
+
+func TestHasNvidiaRuntimeRejectsMalformedJSON(t *testing.T) {
+	if _, err := HasNvidiaRuntime(`not-json`); err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestRunDoesNotRequireNvidiaToolkitOnCPUNode(t *testing.T) {
+	runner := fakeRunner{
+		paths: map[string]bool{"docker": true},
+		results: map[string]commandResult{
+			"docker version --format {{.Server.Version}}": {output: "29.0"},
+		},
+	}
+	report := Run(context.Background(), runner, "")
+	for _, check := range report.Checks {
+		if check.Name == "gpu-containers" {
+			t.Fatalf("unexpected GPU container check: %#v", check)
+		}
+	}
+	if !report.Healthy() {
+		t.Fatalf("CPU-only node should be healthy: %#v", report.Checks)
+	}
+}
+
+func TestRunDistinguishesDockerPermissionFailure(t *testing.T) {
+	runner := fakeRunner{
+		paths: map[string]bool{"docker": true},
+		results: map[string]commandResult{
+			"docker version --format {{.Server.Version}}": {output: "permission denied while connecting", err: errors.New("exit 1")},
+		},
+	}
+	report := Run(context.Background(), runner, "")
+	if report.Checks[1].Summary != "Docker access denied" {
+		t.Fatalf("unexpected Docker result: %#v", report.Checks[1])
 	}
 }

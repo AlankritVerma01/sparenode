@@ -3,6 +3,7 @@ package doctor
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
@@ -69,11 +70,17 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 		report.Checks = append(report.Checks, Check{Name: "operating-system", Status: Fail, Summary: "Node mode currently requires Linux"})
 	}
 
+	dockerReady := false
 	if _, err := runner.LookPath("docker"); err != nil {
 		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: "Docker CLI not found"})
 	} else if output, err := runner.Run(ctx, "docker", "version", "--format", "{{.Server.Version}}"); err != nil {
-		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: "Docker daemon unavailable", Detail: output})
+		summary := "Docker daemon unavailable"
+		if strings.Contains(strings.ToLower(output), "permission denied") {
+			summary = "Docker access denied"
+		}
+		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: summary, Detail: output})
 	} else {
+		dockerReady = true
 		report.Checks = append(report.Checks, Check{Name: "docker", Status: Pass, Summary: "Docker daemon " + output})
 	}
 
@@ -91,10 +98,23 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 		}
 	}
 
-	if _, err := runner.LookPath("nvidia-container-cli"); err != nil {
-		report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Warn, Summary: "NVIDIA Container Toolkit not detected"})
-	} else {
-		report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Pass, Summary: "NVIDIA Container Toolkit installed"})
+	if len(report.GPUs) > 0 {
+		if _, err := runner.LookPath("nvidia-container-cli"); err != nil {
+			report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Fail, Summary: "NVIDIA Container Toolkit not detected"})
+		} else if !dockerReady {
+			report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Warn, Summary: "GPU container runtime could not be checked without Docker access"})
+		} else {
+			output, err := runner.Run(ctx, "docker", "info", "--format", "{{json .Runtimes}}")
+			if err != nil {
+				report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Fail, Summary: "Could not inspect Docker runtimes", Detail: output})
+			} else if configured, err := HasNvidiaRuntime(output); err != nil {
+				report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Fail, Summary: "Could not parse Docker runtimes", Detail: err.Error()})
+			} else if !configured {
+				report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Fail, Summary: "Docker NVIDIA runtime is not configured"})
+			} else {
+				report.Checks = append(report.Checks, Check{Name: "gpu-containers", Status: Pass, Summary: "Docker NVIDIA runtime configured"})
+			}
+		}
 	}
 
 	if dataPath != "" {
@@ -110,6 +130,15 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 	}
 
 	return report
+}
+
+func HasNvidiaRuntime(input string) (bool, error) {
+	var runtimes map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(input), &runtimes); err != nil {
+		return false, err
+	}
+	_, exists := runtimes["nvidia"]
+	return exists, nil
 }
 
 func (r Report) Healthy() bool {
