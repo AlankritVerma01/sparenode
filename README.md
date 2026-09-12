@@ -79,7 +79,8 @@ a long-running workload.
 
 `spare wait` blocks until a job exits and reports its container exit code. Like
 `docker wait`, a nonzero job exit code is output data rather than a failure of
-the wait command itself.
+the wait command itself. Long-running `wait`, `exec`, and `logs --follow`
+commands continue until they finish or the client is interrupted.
 
 `--env` and `--publish` can be repeated. Published ports bind only to the
 node's loopback interface. Reach a service from another machine through

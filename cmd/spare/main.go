@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -34,19 +36,21 @@ func (values *stringList) Set(value string) error {
 }
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string) error {
+func run(ctx context.Context, args []string) error {
 	if len(args) > 0 && args[0] == "rpc" {
 		request, err := remote.DecodeRequest(os.Stdin)
 		if err != nil {
 			return err
 		}
-		return runLocal(request.Args)
+		return runLocal(ctx, request.Args)
 	}
 
 	host, localArgs, err := remote.SplitHost(args, os.Getenv("SPARENODE_HOST"))
@@ -57,14 +61,12 @@ func run(args []string) error {
 		if len(localArgs) == 0 {
 			return errors.New("a command is required")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
 		return remote.RunSSH(ctx, host, localArgs, os.Getenv("SPARENODE_SSH_CONFIG"), os.Stdout, os.Stderr)
 	}
-	return runLocal(localArgs)
+	return runLocal(ctx, localArgs)
 }
 
-func runLocal(args []string) error {
+func runLocal(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		usage()
 		return nil
@@ -74,24 +76,20 @@ func runLocal(args []string) error {
 
 	switch args[0] {
 	case "doctor":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		return runDoctor(ctx, runner, args[1:])
 	case "run":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		defer cancel()
 		return runJob(ctx, runner, args[1:])
 	case "jobs":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		return runJobs(ctx, runner, args[1:])
 	case "logs":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
 		return runLogs(ctx, runner, args[1:])
 	case "exec":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
 		if len(args) < 3 {
 			return errors.New("exec requires a job name and command")
 		}
@@ -104,11 +102,9 @@ func runLocal(args []string) error {
 		}
 		return nil
 	case "wait":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
 		return runWait(ctx, runner, args[1:])
 	case "stop":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		name, err := requireJobName("stop", args[1:])
 		if err != nil {
@@ -120,7 +116,7 @@ func runLocal(args []string) error {
 		fmt.Printf("Stopped %s\n", name)
 		return nil
 	case "remove":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		name, err := requireJobName("remove", args[1:])
 		if err != nil {
