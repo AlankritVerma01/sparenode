@@ -140,7 +140,8 @@ func runLocal(ctx context.Context, args []string) error {
 func runVersion(args []string) error {
 	flags := flag.NewFlagSet("version", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 	if flags.NArg() != 0 {
@@ -163,10 +164,21 @@ func requireJobName(command string, args []string) (string, error) {
 	return args[0], nil
 }
 
+func parseFlags(flags *flag.FlagSet, args []string) (bool, error) {
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}
+
 func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("jobs", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 	if flags.NArg() != 0 {
@@ -203,7 +215,8 @@ func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) e
 	flags := flag.NewFlagSet("logs", flag.ContinueOnError)
 	follow := flags.Bool("follow", false, "stream new log output")
 	tail := flags.String("tail", "100", "number of historical lines, or all")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 	if flags.NArg() != 1 {
@@ -226,7 +239,8 @@ func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) e
 func runWait(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("wait", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 	if flags.NArg() != 1 {
@@ -252,7 +266,8 @@ func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
 	dataPath := flags.String("data-path", "", "inspect a persistent data path")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 
@@ -296,7 +311,8 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 	var publish stringList
 	flags.Var(&environment, "env", "container environment value; repeatable")
 	flags.Var(&publish, "publish", "loopback port mapping HOST:CONTAINER; repeatable")
-	if err := flags.Parse(args); err != nil {
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
 		return err
 	}
 	if *name == "" || *image == "" {
