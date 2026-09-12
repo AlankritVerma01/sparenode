@@ -34,7 +34,7 @@ spare doctor --data-path "$HOME/Data"
 spare doctor --json --data-path "$HOME/Data"
 spare run --name hello --image alpine:latest echo hello
 spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
-spare run --name dev --image ubuntu:24.04 --workspace /srv/project sleep infinity
+spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project sleep infinity
 spare jobs
 spare logs cuda-check
 spare exec dev git status
@@ -67,6 +67,10 @@ Only containers carrying the `dev.sparenode.managed=true` label appear in
 is sent from a remote client. It is bind-mounted at `/workspace`; Docker
 therefore gives the container the same access to that directory as the node
 account. SpareNode never mounts a path implicitly.
+
+`--cpus` and `--memory` use Docker's standard resource-limit values. They are
+optional for an owner-operated node and should be set before sharing access to
+a long-running workload.
 
 ## Build and test
 

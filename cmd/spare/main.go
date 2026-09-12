@@ -210,6 +210,8 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 	name := flags.String("name", "", "unique job name")
 	image := flags.String("image", "", "container image")
 	gpu := flags.Bool("gpu", false, "attach all NVIDIA GPUs")
+	cpus := flags.String("cpus", "", "Docker CPU limit, such as 2 or 0.5")
+	memory := flags.String("memory", "", "Docker memory limit, such as 4g or 512m")
 	workspace := flags.String("workspace", "", "host directory mounted at /workspace")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -218,7 +220,8 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 		return errors.New("run requires --name and --image")
 	}
 	id, err := container.Start(ctx, runner, container.Job{
-		Name: *name, Image: *image, GPU: *gpu, Workspace: *workspace, Command: flags.Args(),
+		Name: *name, Image: *image, GPU: *gpu, CPUs: *cpus, Memory: *memory,
+		Workspace: *workspace, Command: flags.Args(),
 	})
 	if err != nil {
 		return err
@@ -233,7 +236,7 @@ func usage() {
 Usage:
   spare [--host USER@NODE] COMMAND
   spare doctor [--json] [--data-path PATH]
-  spare run --name NAME --image IMAGE [--gpu] [--workspace PATH] [COMMAND...]
+  spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [COMMAND...]
   spare jobs
   spare logs NAME
   spare exec NAME COMMAND...

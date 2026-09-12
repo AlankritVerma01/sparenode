@@ -19,6 +19,8 @@ type Job struct {
 	Name      string
 	Image     string
 	GPU       bool
+	CPUs      string
+	Memory    string
 	Workspace string
 	Command   []string
 }
@@ -32,6 +34,12 @@ func BuildRunArgs(job Job) ([]string, error) {
 	}
 
 	args := []string{"run", "--detach", "--pull", "missing", "--name", job.Name, "--label", managedLabel}
+	if job.CPUs != "" {
+		args = append(args, "--cpus", job.CPUs)
+	}
+	if job.Memory != "" {
+		args = append(args, "--memory", job.Memory)
+	}
 	if job.GPU {
 		args = append(args, "--gpus", "all", "--label", "dev.sparenode.gpu=true")
 	}

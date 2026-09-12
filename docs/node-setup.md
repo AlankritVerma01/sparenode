@@ -54,7 +54,7 @@ Workspace paths belong to the node, not the client. For example, a repository
 at `/srv/project` on the node can back a long-running development container:
 
 ```console
-spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --workspace /srv/project sleep infinity
+spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project sleep infinity
 spare --host dev@gpu-node exec dev git status
 ```
 
