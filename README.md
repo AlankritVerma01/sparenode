@@ -37,8 +37,8 @@ spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
 spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project --env MODE=dev --publish 3000:3000 sleep infinity
 spare jobs
 spare jobs --json
-spare logs cuda-check
-spare logs --follow cuda-check
+spare logs --tail all cuda-check
+spare logs --follow --tail 20 cuda-check
 spare exec dev git status
 spare wait --json hello
 spare stop cuda-check
@@ -81,6 +81,9 @@ a long-running workload.
 `docker wait`, a nonzero job exit code is output data rather than a failure of
 the wait command itself. Long-running `wait`, `exec`, and `logs --follow`
 commands continue until they finish or the client is interrupted.
+
+`spare logs` returns the latest 100 lines by default to keep remote responses
+bounded. Use `--tail all` only when the complete history is intentional.
 
 `--env` and `--publish` can be repeated. Published ports bind only to the
 node's loopback interface. Reach a service from another machine through

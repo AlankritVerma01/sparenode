@@ -124,27 +124,53 @@ func List(ctx context.Context, runner execx.Runner) ([]Summary, error) {
 	return jobs, nil
 }
 
-func Logs(ctx context.Context, runner execx.Runner, name string) (string, error) {
+func Logs(ctx context.Context, runner execx.Runner, name, tail string) (string, error) {
+	if err := validateLogTail(tail); err != nil {
+		return "", err
+	}
 	id, err := managedContainerID(ctx, runner, name)
 	if err != nil {
 		return "", err
 	}
-	output, err := runner.Run(ctx, "docker", "logs", id)
+	logArgs := buildLogArgs(id, tail, false)
+	output, err := runner.Run(ctx, "docker", logArgs...)
 	if err != nil {
 		return "", fmt.Errorf("read job logs: %s: %w", output, err)
 	}
 	return output, nil
 }
 
-func FollowLogs(ctx context.Context, runner execx.StreamingRunner, name string, stdout, stderr io.Writer) error {
+func FollowLogs(ctx context.Context, runner execx.StreamingRunner, name, tail string, stdout, stderr io.Writer) error {
+	if err := validateLogTail(tail); err != nil {
+		return err
+	}
 	id, err := managedContainerID(ctx, runner, name)
 	if err != nil {
 		return err
 	}
-	if err := runner.Stream(ctx, stdout, stderr, "docker", "logs", "--follow", id); err != nil {
+	logArgs := buildLogArgs(id, tail, true)
+	if err := runner.Stream(ctx, stdout, stderr, "docker", logArgs...); err != nil {
 		return fmt.Errorf("follow job logs: %w", err)
 	}
 	return nil
+}
+
+func validateLogTail(tail string) error {
+	if tail != "all" {
+		lines, err := strconv.Atoi(tail)
+		if err != nil || lines < 0 {
+			return fmt.Errorf("invalid log tail %q: use a non-negative number or all", tail)
+		}
+	}
+	return nil
+}
+
+func buildLogArgs(id, tail string, follow bool) []string {
+	args := []string{"logs", "--tail", tail}
+	if follow {
+		args = append(args, "--follow")
+	}
+	return append(args, id)
 }
 
 func Exec(ctx context.Context, runner execx.Runner, name string, command []string) (string, error) {

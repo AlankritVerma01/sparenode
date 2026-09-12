@@ -202,6 +202,7 @@ func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
 func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) error {
 	flags := flag.NewFlagSet("logs", flag.ContinueOnError)
 	follow := flags.Bool("follow", false, "stream new log output")
+	tail := flags.String("tail", "100", "number of historical lines, or all")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -210,9 +211,9 @@ func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) e
 	}
 	name := flags.Arg(0)
 	if *follow {
-		return container.FollowLogs(ctx, runner, name, os.Stdout, os.Stderr)
+		return container.FollowLogs(ctx, runner, name, *tail, os.Stdout, os.Stderr)
 	}
-	output, err := container.Logs(ctx, runner, name)
+	output, err := container.Logs(ctx, runner, name, *tail)
 	if err != nil {
 		return err
 	}
@@ -320,7 +321,7 @@ Usage:
   spare doctor [--json] [--data-path PATH]
   spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
   spare jobs [--json]
-  spare logs [--follow] NAME
+  spare logs [--follow] [--tail N|all] NAME
   spare exec NAME COMMAND...
   spare wait [--json] NAME
   spare stop NAME
