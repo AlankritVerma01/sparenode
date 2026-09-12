@@ -23,6 +23,23 @@ spare stop cuda-check
 spare remove cuda-check
 ```
 
+Run the same commands on a node already configured in OpenSSH:
+
+```console
+spare --host dev@gpu-node doctor --data-path /data
+spare --host dev@gpu-node run --name hello --image alpine:latest echo hello
+spare --host dev@gpu-node logs hello
+```
+
+SpareNode delegates authentication, host verification, proxies, and private
+network routing to OpenSSH and the user's existing SSH configuration. Command
+arguments are sent as a versioned JSON request over standard input rather than
+interpolated into a remote shell command. `SPARENODE_HOST` can set the default
+destination; `SPARENODE_SSH_CONFIG` can select a non-default SSH config file.
+
+See [Node setup](docs/node-setup.md) before granting a remote account access to
+Docker. That permission is intentionally not automated by SpareNode.
+
 Only containers carrying the `dev.sparenode.managed=true` label appear in
 `spare jobs`.
 
@@ -57,8 +74,8 @@ SpareNode management label.
 ## Status
 
 SpareNode is an early working prototype. Local NVIDIA GPU jobs have been
-validated end to end on the reference Linux node. The remote node agent and
-stable release process are not implemented yet.
+validated end to end on the reference Linux node. OpenSSH transport is
+implemented; automated node installation and a stable release process are not.
 
 ## Product boundary
 
@@ -86,9 +103,10 @@ boundary for running hostile public workloads.
 ## Roadmap
 
 1. Prove local CPU and GPU jobs on the reference laptop.
-2. Add a small node agent and authenticated remote CLI protocol.
-3. Add repository checkout and Dev Container compatibility.
-4. Add invitations, resource limits, and multi-node discovery.
+2. Validate the OpenSSH transport from a separate client machine.
+3. Add a conservative node installer and Docker-access diagnostics.
+4. Add repository checkout and Dev Container compatibility.
+5. Add invitations, resource limits, and multi-node discovery.
 
 ## License
 

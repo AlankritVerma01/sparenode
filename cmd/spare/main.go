@@ -12,6 +12,7 @@ import (
 	"github.com/AlankritVerma01/sparenode/internal/container"
 	"github.com/AlankritVerma01/sparenode/internal/doctor"
 	"github.com/AlankritVerma01/sparenode/internal/execx"
+	"github.com/AlankritVerma01/sparenode/internal/remote"
 )
 
 const version = "0.1.0-dev"
@@ -24,6 +25,30 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "rpc" {
+		request, err := remote.DecodeRequest(os.Stdin)
+		if err != nil {
+			return err
+		}
+		return runLocal(request.Args)
+	}
+
+	host, localArgs, err := remote.SplitHost(args, os.Getenv("SPARENODE_HOST"))
+	if err != nil {
+		return err
+	}
+	if host != "" {
+		if len(localArgs) == 0 {
+			return errors.New("a command is required")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		return remote.RunSSH(ctx, host, localArgs, os.Getenv("SPARENODE_SSH_CONFIG"), os.Stdout, os.Stderr)
+	}
+	return runLocal(localArgs)
+}
+
+func runLocal(args []string) error {
 	if len(args) == 0 {
 		usage()
 		return nil
@@ -171,6 +196,7 @@ func usage() {
 	fmt.Print(`SpareNode turns a Linux machine into a private development and GPU node.
 
 Usage:
+  spare [--host USER@NODE] COMMAND
   spare doctor [--json] [--data-path PATH]
   spare run --name NAME --image IMAGE [--gpu] [--workspace PATH] [COMMAND...]
   spare jobs
