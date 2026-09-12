@@ -112,6 +112,10 @@ func runLocal(args []string) error {
 			fmt.Println(output)
 		}
 		return nil
+	case "wait":
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		return runWait(ctx, runner, args[1:])
 	case "stop":
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -208,6 +212,31 @@ func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
 	return writer.Flush()
 }
 
+func runWait(ctx context.Context, runner execx.Runner, args []string) error {
+	flags := flag.NewFlagSet("wait", flag.ContinueOnError)
+	jsonOutput := flags.Bool("json", false, "emit JSON")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 1 {
+		return errors.New("wait requires exactly one job name")
+	}
+	name := flags.Arg(0)
+	exitCode, err := container.Wait(ctx, runner, name)
+	if err != nil {
+		return err
+	}
+	result := struct {
+		Name     string `json:"name"`
+		ExitCode int    `json:"exit_code"`
+	}{Name: name, ExitCode: exitCode}
+	if *jsonOutput {
+		return json.NewEncoder(os.Stdout).Encode(result)
+	}
+	fmt.Printf("%s exited with code %d\n", name, exitCode)
+	return nil
+}
+
 func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
@@ -283,6 +312,7 @@ Usage:
   spare jobs [--json]
   spare logs NAME
   spare exec NAME COMMAND...
+  spare wait [--json] NAME
   spare stop NAME
   spare remove NAME
   spare version [--json]

@@ -177,6 +177,27 @@ func TestExecRefusesUnmanagedContainer(t *testing.T) {
 	}
 }
 
+func TestWaitReturnsContainerExitCode(t *testing.T) {
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: "17\n"}}}
+	exitCode, err := Wait(context.Background(), runner, "job")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"docker", "wait", id}
+	if exitCode != 17 || len(runner.calls) != 2 || !reflect.DeepEqual(runner.calls[1], want) {
+		t.Fatalf("unexpected result: exitCode=%d calls=%#v", exitCode, runner.calls)
+	}
+}
+
+func TestWaitRejectsInvalidExitCode(t *testing.T) {
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: "unknown"}}}
+	if _, err := Wait(context.Background(), runner, "job"); err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
 func TestLifecycleRejectsInvalidInspectMetadata(t *testing.T) {
 	runner := &scriptedRunner{results: []runResult{{output: "not-an-id true"}}}
 	if _, err := Logs(context.Background(), runner, "job"); err == nil {

@@ -39,6 +39,7 @@ spare jobs
 spare jobs --json
 spare logs cuda-check
 spare exec dev git status
+spare wait --json hello
 spare stop cuda-check
 spare remove cuda-check
 ```
@@ -50,6 +51,7 @@ spare --host dev@gpu-node doctor --data-path /data
 spare --host dev@gpu-node run --name hello --image alpine:latest echo hello
 spare --host dev@gpu-node logs hello
 spare --host dev@gpu-node exec dev git status
+spare --host dev@gpu-node wait --json hello
 ```
 
 SpareNode delegates authentication, host verification, proxies, and private
@@ -73,6 +75,10 @@ account. SpareNode never mounts a path implicitly.
 `--cpus` and `--memory` use Docker's standard resource-limit values. They are
 optional for an owner-operated node and should be set before sharing access to
 a long-running workload.
+
+`spare wait` blocks until a job exits and reports its container exit code. Like
+`docker wait`, a nonzero job exit code is output data rather than a failure of
+the wait command itself.
 
 `--env` and `--publish` can be repeated. Published ports bind only to the
 node's loopback interface. Reach a service from another machine through

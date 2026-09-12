@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/AlankritVerma01/sparenode/internal/execx"
@@ -148,6 +149,22 @@ func Exec(ctx context.Context, runner execx.Runner, name string, command []strin
 		return "", fmt.Errorf("execute in job: %s: %w", output, err)
 	}
 	return output, nil
+}
+
+func Wait(ctx context.Context, runner execx.Runner, name string) (int, error) {
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
+		return 0, err
+	}
+	output, err := runner.Run(ctx, "docker", "wait", id)
+	if err != nil {
+		return 0, fmt.Errorf("wait for job: %s: %w", output, err)
+	}
+	exitCode, err := strconv.Atoi(strings.TrimSpace(output))
+	if err != nil || exitCode < 0 || exitCode > 255 {
+		return 0, fmt.Errorf("Docker returned invalid exit code %q", output)
+	}
+	return exitCode, nil
 }
 
 func Stop(ctx context.Context, runner execx.Runner, name string) error {

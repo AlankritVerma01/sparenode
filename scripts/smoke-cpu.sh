@@ -93,6 +93,11 @@ if [[ "$limits" != "500000000 67108864" ]]; then
 fi
 
 "${spare[@]}" stop "$job_name" >/dev/null
+wait_result="$("${spare[@]}" wait --json "$job_name")"
+if [[ "$wait_result" != *"\"exit_code\":"* ]]; then
+  echo "Wait result did not contain an exit code." >&2
+  exit 1
+fi
 "${spare[@]}" remove "$job_name" >/dev/null
 started=false
 rmdir "$workspace_dir"
