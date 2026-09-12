@@ -84,10 +84,11 @@ func List(ctx context.Context, runner execx.Runner) (string, error) {
 }
 
 func Logs(ctx context.Context, runner execx.Runner, name string) (string, error) {
-	if err := ensureManaged(ctx, runner, name); err != nil {
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
 		return "", err
 	}
-	output, err := runner.Run(ctx, "docker", "logs", name)
+	output, err := runner.Run(ctx, "docker", "logs", id)
 	if err != nil {
 		return "", fmt.Errorf("read job logs: %s: %w", output, err)
 	}
@@ -95,10 +96,11 @@ func Logs(ctx context.Context, runner execx.Runner, name string) (string, error)
 }
 
 func Stop(ctx context.Context, runner execx.Runner, name string) error {
-	if err := ensureManaged(ctx, runner, name); err != nil {
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
 		return err
 	}
-	output, err := runner.Run(ctx, "docker", "stop", "--time", "10", name)
+	output, err := runner.Run(ctx, "docker", "stop", "--time", "10", id)
 	if err != nil {
 		return fmt.Errorf("stop job: %s: %w", output, err)
 	}
@@ -106,26 +108,31 @@ func Stop(ctx context.Context, runner execx.Runner, name string) error {
 }
 
 func Remove(ctx context.Context, runner execx.Runner, name string) error {
-	if err := ensureManaged(ctx, runner, name); err != nil {
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
 		return err
 	}
-	output, err := runner.Run(ctx, "docker", "rm", name)
+	output, err := runner.Run(ctx, "docker", "rm", id)
 	if err != nil {
 		return fmt.Errorf("remove job: %s: %w", output, err)
 	}
 	return nil
 }
 
-func ensureManaged(ctx context.Context, runner execx.Runner, name string) error {
+func managedContainerID(ctx context.Context, runner execx.Runner, name string) (string, error) {
 	if !validName.MatchString(name) {
-		return fmt.Errorf("invalid job name %q", name)
+		return "", fmt.Errorf("invalid job name %q", name)
 	}
-	output, err := runner.Run(ctx, "docker", "inspect", "--format", `{{index .Config.Labels "dev.sparenode.managed"}}`, name)
+	output, err := runner.Run(ctx, "docker", "inspect", "--format", `{{.Id}}	{{index .Config.Labels "dev.sparenode.managed"}}`, name)
 	if err != nil {
-		return fmt.Errorf("inspect job: %s: %w", output, err)
+		return "", fmt.Errorf("inspect job: %s: %w", output, err)
 	}
-	if strings.TrimSpace(output) != "true" {
-		return fmt.Errorf("container %q is not managed by SpareNode", name)
+	fields := strings.Fields(output)
+	if len(fields) != 2 || !validContainerID.MatchString(fields[0]) {
+		return "", fmt.Errorf("Docker returned invalid metadata for container %q", name)
 	}
-	return nil
+	if fields[1] != "true" {
+		return "", fmt.Errorf("container %q is not managed by SpareNode", name)
+	}
+	return fields[0], nil
 }

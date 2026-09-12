@@ -22,7 +22,7 @@ hardware. The smoke test must clean up every container it creates.
 - Keep host command execution behind testable interfaces.
 - Never interpolate user arguments into shell command strings.
 - Never operate on an existing container unless it carries SpareNode's
-  management label.
+  management label; resolve it to an immutable container ID before acting.
 - Document any permission that grants effective root access.
 - Do not add a dependency when the standard library is sufficient and clearer.
 

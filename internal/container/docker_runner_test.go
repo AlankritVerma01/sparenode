@@ -88,7 +88,8 @@ func TestListSelectsOnlyManagedContainers(t *testing.T) {
 }
 
 func TestRemoveRefusesUnmanagedContainer(t *testing.T) {
-	runner := &scriptedRunner{results: []runResult{{output: ""}}}
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " false"}}}
 	err := Remove(context.Background(), runner, "database")
 	if err == nil || err.Error() != `container "database" is not managed by SpareNode` {
 		t.Fatalf("unexpected error: %v", err)
@@ -99,22 +100,31 @@ func TestRemoveRefusesUnmanagedContainer(t *testing.T) {
 }
 
 func TestRemoveManagedContainer(t *testing.T) {
-	runner := &scriptedRunner{results: []runResult{{output: "true"}, {output: "job"}}}
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: "job"}}}
 	if err := Remove(context.Background(), runner, "job"); err != nil {
 		t.Fatal(err)
 	}
-	if len(runner.calls) != 2 || runner.calls[1][1] != "rm" {
+	if len(runner.calls) != 2 || runner.calls[1][1] != "rm" || runner.calls[1][2] != id {
 		t.Fatalf("unexpected calls: %#v", runner.calls)
 	}
 }
 
 func TestLogsManagedContainer(t *testing.T) {
-	runner := &scriptedRunner{results: []runResult{{output: "true"}, {output: "GPU ready"}}}
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: "GPU ready"}}}
 	output, err := Logs(context.Background(), runner, "job")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if output != "GPU ready" || len(runner.calls) != 2 || runner.calls[1][1] != "logs" {
+	if output != "GPU ready" || len(runner.calls) != 2 || runner.calls[1][1] != "logs" || runner.calls[1][2] != id {
 		t.Fatalf("unexpected result: output=%q calls=%#v", output, runner.calls)
+	}
+}
+
+func TestLifecycleRejectsInvalidInspectMetadata(t *testing.T) {
+	runner := &scriptedRunner{results: []runResult{{output: "not-an-id true"}}}
+	if _, err := Logs(context.Background(), runner, "job"); err == nil {
+		t.Fatal("expected an error")
 	}
 }
