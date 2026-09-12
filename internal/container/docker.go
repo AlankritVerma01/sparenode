@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -133,6 +134,17 @@ func Logs(ctx context.Context, runner execx.Runner, name string) (string, error)
 		return "", fmt.Errorf("read job logs: %s: %w", output, err)
 	}
 	return output, nil
+}
+
+func FollowLogs(ctx context.Context, runner execx.StreamingRunner, name string, stdout, stderr io.Writer) error {
+	id, err := managedContainerID(ctx, runner, name)
+	if err != nil {
+		return err
+	}
+	if err := runner.Stream(ctx, stdout, stderr, "docker", "logs", "--follow", id); err != nil {
+		return fmt.Errorf("follow job logs: %w", err)
+	}
+	return nil
 }
 
 func Exec(ctx context.Context, runner execx.Runner, name string, command []string) (string, error) {

@@ -38,6 +38,7 @@ spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/
 spare jobs
 spare jobs --json
 spare logs cuda-check
+spare logs --follow cuda-check
 spare exec dev git status
 spare wait --json hello
 spare stop cuda-check

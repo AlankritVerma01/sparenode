@@ -86,18 +86,9 @@ func runLocal(args []string) error {
 		defer cancel()
 		return runJobs(ctx, runner, args[1:])
 	case "logs":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
-		name, err := requireJobName("logs", args[1:])
-		if err != nil {
-			return err
-		}
-		output, err := container.Logs(ctx, runner, name)
-		if err != nil {
-			return err
-		}
-		fmt.Println(output)
-		return nil
+		return runLogs(ctx, runner, args[1:])
 	case "exec":
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
@@ -212,6 +203,29 @@ func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
 	return writer.Flush()
 }
 
+func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) error {
+	flags := flag.NewFlagSet("logs", flag.ContinueOnError)
+	follow := flags.Bool("follow", false, "stream new log output")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 1 {
+		return errors.New("logs requires exactly one job name")
+	}
+	name := flags.Arg(0)
+	if *follow {
+		return container.FollowLogs(ctx, runner, name, os.Stdout, os.Stderr)
+	}
+	output, err := container.Logs(ctx, runner, name)
+	if err != nil {
+		return err
+	}
+	if output != "" {
+		fmt.Println(output)
+	}
+	return nil
+}
+
 func runWait(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("wait", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
@@ -310,7 +324,7 @@ Usage:
   spare doctor [--json] [--data-path PATH]
   spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
   spare jobs [--json]
-  spare logs NAME
+  spare logs [--follow] NAME
   spare exec NAME COMMAND...
   spare wait [--json] NAME
   spare stop NAME

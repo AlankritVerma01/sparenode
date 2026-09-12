@@ -5,6 +5,8 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 spare_bin="${SPARE_BIN:-$project_dir/bin/spare}"
 job_name="sparenode-cpu-smoke-$$"
 workspace_dir=""
+follow_output=""
+follow_pid=""
 
 if [[ ! -x "$spare_bin" ]]; then
   echo "SpareNode binary not found; run 'make build' first." >&2
@@ -35,6 +37,12 @@ cleanup() {
     "${spare[@]}" stop "$job_name" >/dev/null 2>&1 || true
     "${spare[@]}" remove "$job_name" >/dev/null 2>&1 || true
   fi
+  if [[ -n "$follow_pid" ]]; then
+    wait "$follow_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$follow_output" ]]; then
+    rm -f -- "$follow_output"
+  fi
   rmdir "$workspace_dir" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -61,6 +69,10 @@ if [[ "$output" != *"cpu-ready"* ]]; then
   echo "CPU smoke test did not observe the readiness message." >&2
   exit 1
 fi
+
+follow_output="$workspace_dir/follow.log"
+"${spare[@]}" logs --follow "$job_name" >"$follow_output" 2>&1 &
+follow_pid=$!
 
 jobs="$("${spare[@]}" jobs --json)"
 if [[ "$jobs" != *"\"name\": \"$job_name\""* ]]; then
@@ -93,6 +105,14 @@ if [[ "$limits" != "500000000 67108864" ]]; then
 fi
 
 "${spare[@]}" stop "$job_name" >/dev/null
+wait "$follow_pid"
+follow_pid=""
+if ! grep -q 'cpu-ready' "$follow_output"; then
+  echo "Live log stream did not contain the readiness output." >&2
+  exit 1
+fi
+rm -f -- "$follow_output"
+follow_output=""
 wait_result="$("${spare[@]}" wait --json "$job_name")"
 if [[ "$wait_result" != *"\"exit_code\":"* ]]; then
   echo "Wait result did not contain an exit code." >&2

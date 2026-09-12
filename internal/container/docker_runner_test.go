@@ -1,8 +1,10 @@
 package container
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"reflect"
 	"testing"
 )
@@ -24,6 +26,19 @@ type scriptedRunner struct {
 	calls   [][]string
 }
 
+type streamCall struct {
+	name string
+	args []string
+}
+
+type streamingRunner struct {
+	scriptedRunner
+	stdout string
+	stderr string
+	err    error
+	stream streamCall
+}
+
 func (s *scriptedRunner) LookPath(file string) (string, error) { return file, nil }
 
 func (s *scriptedRunner) Run(_ context.Context, name string, args ...string) (string, error) {
@@ -34,6 +49,13 @@ func (s *scriptedRunner) Run(_ context.Context, name string, args ...string) (st
 	result := s.results[0]
 	s.results = s.results[1:]
 	return result.output, result.err
+}
+
+func (s *streamingRunner) Stream(_ context.Context, stdout, stderr io.Writer, name string, args ...string) error {
+	s.stream = streamCall{name: name, args: append([]string(nil), args...)}
+	_, _ = io.WriteString(stdout, s.stdout)
+	_, _ = io.WriteString(stderr, s.stderr)
+	return s.err
 }
 
 func (f *fakeRunner) LookPath(file string) (string, error) { return file, nil }
@@ -139,6 +161,27 @@ func TestLogsManagedContainer(t *testing.T) {
 	}
 	if output != "GPU ready" || len(runner.calls) != 2 || runner.calls[1][1] != "logs" || runner.calls[1][2] != id {
 		t.Fatalf("unexpected result: output=%q calls=%#v", output, runner.calls)
+	}
+}
+
+func TestFollowLogsStreamsManagedContainer(t *testing.T) {
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &streamingRunner{
+		scriptedRunner: scriptedRunner{results: []runResult{{output: id + " true"}}},
+		stdout:         "progress\n",
+		stderr:         "warning\n",
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if err := FollowLogs(context.Background(), runner, "job", &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"logs", "--follow", id}
+	if runner.stream.name != "docker" || !reflect.DeepEqual(runner.stream.args, want) {
+		t.Fatalf("unexpected stream call: %#v", runner.stream)
+	}
+	if stdout.String() != "progress\n" || stderr.String() != "warning\n" {
+		t.Fatalf("unexpected streams: stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 
