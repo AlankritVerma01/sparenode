@@ -116,4 +116,7 @@ func TestRunDistinguishesDockerPermissionFailure(t *testing.T) {
 	if report.Checks[1].Summary != "Docker access denied" {
 		t.Fatalf("unexpected Docker result: %#v", report.Checks[1])
 	}
+	if !strings.Contains(report.Checks[1].Detail, "effective root privileges") || !strings.Contains(report.Checks[1].Detail, "node-setup.md") {
+		t.Fatalf("permission failure should explain the security boundary: %#v", report.Checks[1])
+	}
 }

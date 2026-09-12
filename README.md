@@ -122,9 +122,10 @@ SpareNode management label.
 ## Status
 
 SpareNode is an early working prototype. Local NVIDIA GPU jobs have been
-validated end to end on the reference Linux node. OpenSSH transport and
-prerelease automation are implemented; automated node installation and a
-stable release are not.
+validated end to end on the reference Linux node. CPU jobs run in CI against a
+real Docker daemon. OpenSSH transport, resource limits, structured output, and
+prerelease automation are implemented. A separate-device acceptance test,
+automated node installation, and a stable release are not complete.
 
 ## Product boundary
 
@@ -151,11 +152,22 @@ boundary for running hostile public workloads.
 
 ## Roadmap
 
-1. Prove local CPU and GPU jobs on the reference laptop.
-2. Validate the OpenSSH transport from a separate client machine.
-3. Add a conservative node installer and Docker-access diagnostics.
-4. Add repository checkout and Dev Container compatibility.
-5. Add invitations, resource limits, and multi-node discovery.
+Completed foundations:
+
+- Local CPU and NVIDIA GPU jobs on the reference laptop
+- Managed lifecycle, workspaces, resource limits, live logs, and exit codes
+- Versioned OpenSSH transport with structured machine-readable output
+- Cross-platform prerelease builds and Docker-backed CI
+
+Next milestones:
+
+1. Validate the full workflow from a separate macOS client.
+2. Add a conservative, opt-in node setup path without hiding Docker's security
+   boundary.
+3. Support repository-owned environments through existing Dev Container and
+   Docker Compose conventions.
+4. Design trusted-collaborator access before attempting invitations or
+   multi-node discovery.
 
 ## License
 

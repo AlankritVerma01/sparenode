@@ -75,10 +75,16 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: "Docker CLI not found"})
 	} else if output, err := runner.Run(ctx, "docker", "version", "--format", "{{.Server.Version}}"); err != nil {
 		summary := "Docker daemon unavailable"
+		detail := output
 		if strings.Contains(strings.ToLower(output), "permission denied") {
 			summary = "Docker access denied"
+			detail = strings.TrimSpace(output)
+			if detail != "" {
+				detail += "\n"
+			}
+			detail += "Docker access grants effective root privileges; grant it only to a trusted node owner. See https://github.com/AlankritVerma01/sparenode/blob/main/docs/node-setup.md"
 		}
-		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: summary, Detail: output})
+		report.Checks = append(report.Checks, Check{Name: "docker", Status: Fail, Summary: summary, Detail: detail})
 	} else {
 		dockerReady = true
 		report.Checks = append(report.Checks, Check{Name: "docker", Status: Pass, Summary: "Docker daemon " + output})

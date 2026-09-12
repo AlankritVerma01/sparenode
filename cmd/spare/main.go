@@ -271,7 +271,7 @@ func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 		for _, check := range report.Checks {
 			fmt.Printf("%-5s %-16s %s\n", check.Status, check.Name, check.Summary)
 			if check.Detail != "" {
-				fmt.Printf("      %s\n", check.Detail)
+				fmt.Printf("      %s\n", strings.ReplaceAll(check.Detail, "\n", "\n      "))
 			}
 		}
 		for _, gpu := range report.GPUs {

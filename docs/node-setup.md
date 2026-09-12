@@ -110,7 +110,8 @@ Then exercise the same lifecycle remotely:
 
 ```console
 spare --host dev@gpu-node run --name gpu-check --image ubuntu:24.04 --gpu nvidia-smi -L
-spare --host dev@gpu-node logs gpu-check
+spare --host dev@gpu-node logs --follow gpu-check
+spare --host dev@gpu-node wait --json gpu-check
 spare --host dev@gpu-node stop gpu-check
 spare --host dev@gpu-node remove gpu-check
 ```
