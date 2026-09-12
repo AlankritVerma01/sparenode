@@ -8,6 +8,7 @@ import (
 func TestBuildRunArgsGPUJob(t *testing.T) {
 	args, err := BuildRunArgs(Job{
 		Name: "cuda-test", Image: "ubuntu:24.04", GPU: true, CPUs: "2.5", Memory: "4g",
+		Env: []string{"MODE=test", "TOKEN"}, Publish: []string{"3000:3000", "8080:80"},
 		Command: []string{"nvidia-smi", "-L"},
 	})
 	if err != nil {
@@ -15,7 +16,10 @@ func TestBuildRunArgsGPUJob(t *testing.T) {
 	}
 	want := []string{
 		"run", "--detach", "--pull", "missing", "--name", "cuda-test",
-		"--label", "dev.sparenode.managed=true", "--cpus", "2.5", "--memory", "4g", "--gpus", "all",
+		"--label", "dev.sparenode.managed=true", "--cpus", "2.5", "--memory", "4g",
+		"--env", "MODE=test", "--env", "TOKEN",
+		"--publish", "127.0.0.1:3000:3000", "--publish", "127.0.0.1:8080:80",
+		"--gpus", "all",
 		"--label", "dev.sparenode.gpu=true", "ubuntu:24.04", "nvidia-smi", "-L",
 	}
 	if !reflect.DeepEqual(args, want) {

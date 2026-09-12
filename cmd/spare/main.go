@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -20,6 +21,17 @@ var (
 	version = "dev"
 	commit  = "unknown"
 )
+
+type stringList []string
+
+func (values *stringList) String() string {
+	return strings.Join(*values, ",")
+}
+
+func (values *stringList) Set(value string) error {
+	*values = append(*values, value)
+	return nil
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -240,6 +252,10 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 	cpus := flags.String("cpus", "", "Docker CPU limit, such as 2 or 0.5")
 	memory := flags.String("memory", "", "Docker memory limit, such as 4g or 512m")
 	workspace := flags.String("workspace", "", "host directory mounted at /workspace")
+	var environment stringList
+	var publish stringList
+	flags.Var(&environment, "env", "container environment value; repeatable")
+	flags.Var(&publish, "publish", "loopback port mapping HOST:CONTAINER; repeatable")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -248,7 +264,7 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 	}
 	id, err := container.Start(ctx, runner, container.Job{
 		Name: *name, Image: *image, GPU: *gpu, CPUs: *cpus, Memory: *memory,
-		Workspace: *workspace, Command: flags.Args(),
+		Workspace: *workspace, Env: environment, Publish: publish, Command: flags.Args(),
 	})
 	if err != nil {
 		return err
@@ -263,7 +279,7 @@ func usage() {
 Usage:
   spare [--host USER@NODE] COMMAND
   spare doctor [--json] [--data-path PATH]
-  spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [COMMAND...]
+  spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
   spare jobs [--json]
   spare logs NAME
   spare exec NAME COMMAND...

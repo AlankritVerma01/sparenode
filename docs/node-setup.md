@@ -54,8 +54,15 @@ Workspace paths belong to the node, not the client. For example, a repository
 at `/srv/project` on the node can back a long-running development container:
 
 ```console
-spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project sleep infinity
+spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project --publish 3000:3000 sleep infinity
 spare --host dev@gpu-node exec dev git status
+```
+
+Published ports listen only on the node's loopback interface. Keep a separate
+OpenSSH tunnel running on the client to reach one:
+
+```console
+ssh -N -L 3000:127.0.0.1:3000 dev@gpu-node
 ```
 
 For remote internet access, place the node on an authenticated private network

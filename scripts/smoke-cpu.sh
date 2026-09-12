@@ -45,7 +45,9 @@ trap cleanup EXIT
   --cpus 0.5 \
   --memory 64m \
   --workspace "$workspace_dir" \
-  sh -c 'echo cpu-ready; sleep 300'
+  --env SPARENODE_SMOKE=ready \
+  --publish :8080 \
+  sh -c 'echo cpu-ready; exec nc -lk -p 8080 -e echo'
 started=true
 
 for _ in {1..20}; do
@@ -69,6 +71,18 @@ fi
 workspace="$("${spare[@]}" exec "$job_name" pwd)"
 if [[ "$workspace" != "/workspace" ]]; then
   echo "Unexpected container workspace: $workspace" >&2
+  exit 1
+fi
+
+environment="$("${spare[@]}" exec "$job_name" printenv SPARENODE_SMOKE)"
+if [[ "$environment" != "ready" ]]; then
+  echo "Unexpected container environment: $environment" >&2
+  exit 1
+fi
+
+host_ip="$("${docker_command[@]}" inspect --format '{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostIp}}' "$job_name")"
+if [[ "$host_ip" != "127.0.0.1" ]]; then
+  echo "Published port is not loopback-only: $host_ip" >&2
   exit 1
 fi
 

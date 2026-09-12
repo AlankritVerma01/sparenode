@@ -34,7 +34,7 @@ spare doctor --data-path "$HOME/Data"
 spare doctor --json --data-path "$HOME/Data"
 spare run --name hello --image alpine:latest echo hello
 spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
-spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project sleep infinity
+spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project --env MODE=dev --publish 3000:3000 sleep infinity
 spare jobs
 spare jobs --json
 spare logs cuda-check
@@ -72,6 +72,14 @@ account. SpareNode never mounts a path implicitly.
 `--cpus` and `--memory` use Docker's standard resource-limit values. They are
 optional for an owner-operated node and should be set before sharing access to
 a long-running workload.
+
+`--env` and `--publish` can be repeated. Published ports bind only to the
+node's loopback interface. Reach a service from another machine through
+OpenSSH instead of exposing it on the LAN:
+
+```console
+ssh -N -L 3000:127.0.0.1:3000 dev@gpu-node
+```
 
 ## Build and test
 

@@ -22,6 +22,8 @@ type Job struct {
 	CPUs      string
 	Memory    string
 	Workspace string
+	Env       []string
+	Publish   []string
 	Command   []string
 }
 
@@ -46,6 +48,12 @@ func BuildRunArgs(job Job) ([]string, error) {
 	}
 	if job.Memory != "" {
 		args = append(args, "--memory", job.Memory)
+	}
+	for _, environment := range job.Env {
+		args = append(args, "--env", environment)
+	}
+	for _, publish := range job.Publish {
+		args = append(args, "--publish", "127.0.0.1:"+publish)
 	}
 	if job.GPU {
 		args = append(args, "--gpus", "all", "--label", "dev.sparenode.gpu=true")
