@@ -50,6 +50,36 @@ Then use the client transport:
 spare --host dev@gpu-node doctor --data-path /data
 ```
 
+### Optional private access with Tailscale SSH
+
+[Tailscale SSH](https://tailscale.com/docs/features/tailscale-ssh) is one way to
+reach a node without opening SSH to the public internet or maintaining a
+custom VPN. It is optional; SpareNode still uses the system `ssh` client and
+does not link to or manage Tailscale.
+
+On Arch Linux and Omarchy, install the official
+[distribution package](https://archlinux.org/packages/extra/x86_64/tailscale/)
+and enable its service:
+
+```console
+sudo pacman -S tailscale
+sudo systemctl enable --now tailscaled
+sudo tailscale up --ssh
+```
+
+The final command prints an authentication URL. Join the client machine to the
+same tailnet, review the tailnet's SSH access policy, and verify the connection
+before using SpareNode:
+
+```console
+ssh dev@gpu-node spare version
+spare --host dev@gpu-node doctor --data-path /data
+```
+
+Tailscale SSH runs its own SSH server for tailnet traffic, so a separate public
+OpenSSH listener is not required for this setup. Regular OpenSSH over a private
+Tailscale address remains a supported alternative.
+
 Workspace paths belong to the node, not the client. For example, a repository
 at `/srv/project` on the node can back a long-running development container:
 

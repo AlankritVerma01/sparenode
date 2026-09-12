@@ -59,7 +59,8 @@ interpolated into a remote shell command. `SPARENODE_HOST` can set the default
 destination; `SPARENODE_SSH_CONFIG` can select a non-default SSH config file.
 
 See [Node setup](docs/node-setup.md) before granting a remote account access to
-Docker. That permission is intentionally not automated by SpareNode.
+Docker. It covers regular OpenSSH and optional Tailscale SSH; neither is
+configured automatically by SpareNode.
 
 Only containers carrying the `dev.sparenode.managed=true` label appear in
 `spare jobs`.
