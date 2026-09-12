@@ -76,14 +76,34 @@ func TestStartIncludesRunnerFailure(t *testing.T) {
 }
 
 func TestListSelectsOnlyManagedContainers(t *testing.T) {
-	runner := &fakeRunner{output: "abc\tjob\tUp\talpine"}
-	output, err := List(context.Background(), runner)
+	runner := &fakeRunner{output: "abc\tjob\tUp 2 minutes\talpine:latest\ndef\tdone\tExited (0)\tubuntu:24.04"}
+	jobs, err := List(context.Background(), runner)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"ps", "--all", "--filter", "label=dev.sparenode.managed=true", "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}"}
-	if output != runner.output || !reflect.DeepEqual(runner.args, want) {
-		t.Fatalf("unexpected list call: output=%q args=%#v", output, runner.args)
+	wantJobs := []Summary{
+		{ID: "abc", Name: "job", Status: "Up 2 minutes", Image: "alpine:latest"},
+		{ID: "def", Name: "done", Status: "Exited (0)", Image: "ubuntu:24.04"},
+	}
+	if !reflect.DeepEqual(jobs, wantJobs) || !reflect.DeepEqual(runner.args, want) {
+		t.Fatalf("unexpected list call: jobs=%#v args=%#v", jobs, runner.args)
+	}
+}
+
+func TestListReturnsEmptySlice(t *testing.T) {
+	jobs, err := List(context.Background(), &fakeRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jobs == nil || len(jobs) != 0 {
+		t.Fatalf("expected a non-nil empty list, got %#v", jobs)
+	}
+}
+
+func TestListRejectsMalformedDockerOutput(t *testing.T) {
+	if _, err := List(context.Background(), &fakeRunner{output: "missing fields"}); err == nil {
+		t.Fatal("expected an error")
 	}
 }
 

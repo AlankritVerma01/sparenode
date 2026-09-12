@@ -36,6 +36,7 @@ spare run --name hello --image alpine:latest echo hello
 spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
 spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project sleep infinity
 spare jobs
+spare jobs --json
 spare logs cuda-check
 spare exec dev git status
 spare stop cuda-check

@@ -25,6 +25,13 @@ type Job struct {
 	Command   []string
 }
 
+type Summary struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Image  string `json:"image"`
+}
+
 func BuildRunArgs(job Job) ([]string, error) {
 	if !validName.MatchString(job.Name) {
 		return nil, fmt.Errorf("invalid job name %q", job.Name)
@@ -85,13 +92,26 @@ func ParseContainerID(output string) (string, error) {
 	return "", fmt.Errorf("Docker did not return a container ID")
 }
 
-func List(ctx context.Context, runner execx.Runner) (string, error) {
+func List(ctx context.Context, runner execx.Runner) ([]Summary, error) {
 	output, err := runner.Run(ctx, "docker", "ps", "--all", "--filter", "label="+managedLabel,
 		"--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}")
 	if err != nil {
-		return "", fmt.Errorf("list jobs: %s: %w", output, err)
+		return nil, fmt.Errorf("list jobs: %s: %w", output, err)
 	}
-	return output, nil
+	if output == "" {
+		return []Summary{}, nil
+	}
+
+	lines := strings.Split(output, "\n")
+	jobs := make([]Summary, 0, len(lines))
+	for _, line := range lines {
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 {
+			return nil, fmt.Errorf("Docker returned invalid job list data")
+		}
+		jobs = append(jobs, Summary{ID: fields[0], Name: fields[1], Status: fields[2], Image: fields[3]})
+	}
+	return jobs, nil
 }
 
 func Logs(ctx context.Context, runner execx.Runner, name string) (string, error) {

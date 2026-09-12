@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/AlankritVerma01/sparenode/internal/container"
@@ -71,17 +72,7 @@ func runLocal(args []string) error {
 	case "jobs":
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		output, err := container.List(ctx, runner)
-		if err != nil {
-			return err
-		}
-		if output == "" {
-			fmt.Println("No SpareNode jobs.")
-		} else {
-			fmt.Println("ID\tNAME\tSTATUS\tIMAGE")
-			fmt.Println(output)
-		}
-		return nil
+		return runJobs(ctx, runner, args[1:])
 	case "logs":
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -169,6 +160,42 @@ func requireJobName(command string, args []string) (string, error) {
 	return args[0], nil
 }
 
+func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
+	flags := flag.NewFlagSet("jobs", flag.ContinueOnError)
+	jsonOutput := flags.Bool("json", false, "emit JSON")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("jobs does not accept positional arguments")
+	}
+
+	jobs, err := container.List(ctx, runner)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(jobs)
+	}
+	if len(jobs) == 0 {
+		fmt.Println("No SpareNode jobs.")
+		return nil
+	}
+
+	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintln(writer, "ID\tNAME\tSTATUS\tIMAGE"); err != nil {
+		return err
+	}
+	for _, job := range jobs {
+		if _, err := fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", job.ID, job.Name, job.Status, job.Image); err != nil {
+			return err
+		}
+	}
+	return writer.Flush()
+}
+
 func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	jsonOutput := flags.Bool("json", false, "emit JSON")
@@ -237,7 +264,7 @@ Usage:
   spare [--host USER@NODE] COMMAND
   spare doctor [--json] [--data-path PATH]
   spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [COMMAND...]
-  spare jobs
+  spare jobs [--json]
   spare logs NAME
   spare exec NAME COMMAND...
   spare stop NAME

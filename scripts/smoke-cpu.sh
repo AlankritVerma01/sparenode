@@ -60,6 +60,12 @@ if [[ "$output" != *"cpu-ready"* ]]; then
   exit 1
 fi
 
+jobs="$("${spare[@]}" jobs --json)"
+if [[ "$jobs" != *"\"name\": \"$job_name\""* ]]; then
+  echo "Structured job list did not contain the smoke-test job." >&2
+  exit 1
+fi
+
 workspace="$("${spare[@]}" exec "$job_name" pwd)"
 if [[ "$workspace" != "/workspace" ]]; then
   echo "Unexpected container workspace: $workspace" >&2
