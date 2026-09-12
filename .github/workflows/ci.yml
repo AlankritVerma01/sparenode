@@ -22,4 +22,6 @@ jobs:
           cache: false
       - run: go test -race ./...
       - run: go vet ./...
-      - run: go build ./cmd/spare
+      - run: make build
+      - if: runner.os == 'Linux'
+        run: ./scripts/smoke-cpu.sh

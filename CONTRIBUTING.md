@@ -10,6 +10,7 @@ runtimes, dashboards, or schedulers.
 make check
 go test -race ./...
 make build
+./scripts/smoke-cpu.sh
 ```
 
 GPU or Docker changes should also pass `./scripts/smoke-gpu.sh` on compatible

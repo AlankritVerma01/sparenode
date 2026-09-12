@@ -1,4 +1,4 @@
-.PHONY: build test check
+.PHONY: build test check smoke-cpu smoke-gpu
 
 VERSION ?= dev
 COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf unknown)
@@ -12,3 +12,9 @@ test:
 
 check: test
 	go vet ./...
+
+smoke-cpu: build
+	./scripts/smoke-cpu.sh
+
+smoke-gpu: build
+	./scripts/smoke-gpu.sh

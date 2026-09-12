@@ -79,12 +79,14 @@ Requirements: Go 1.27+ and, for real jobs, a running Docker daemon.
 ```console
 make check
 make build
+./scripts/smoke-cpu.sh
 ./bin/spare doctor --data-path "$HOME/Data"
 ./scripts/smoke-gpu.sh
 ```
 
-The unit tests do not require Docker or NVIDIA hardware. A real GPU smoke test
-requires an NVIDIA driver and NVIDIA Container Toolkit on the node.
+The unit tests do not require Docker or NVIDIA hardware. CI also runs the CPU
+smoke test against a real Docker daemon. The GPU smoke test requires an NVIDIA
+driver and NVIDIA Container Toolkit on the node.
 
 ### Testing strategy
 
