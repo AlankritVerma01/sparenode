@@ -4,6 +4,7 @@ set -euo pipefail
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 spare_bin="${SPARE_BIN:-$project_dir/bin/spare}"
 job_name="sparenode-cpu-smoke-$$"
+cpu_image="${SPARENODE_CPU_IMAGE:-alpine:3.22}"
 workspace_dir=""
 follow_output=""
 follow_pid=""
@@ -30,6 +31,19 @@ if "${docker_command[@]}" inspect "$job_name" >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! "${docker_command[@]}" image inspect "$cpu_image" >/dev/null 2>&1; then
+  for attempt in 1 2 3; do
+    if "${docker_command[@]}" pull "$cpu_image"; then
+      break
+    fi
+    if [[ "$attempt" -eq 3 ]]; then
+      echo "Unable to pull smoke-test image after 3 attempts: $cpu_image" >&2
+      exit 1
+    fi
+    sleep "$((attempt * 2))"
+  done
+fi
+
 workspace_dir="$(mktemp -d)"
 node_uid="$(id -u)"
 node_gid="$(id -g)"
@@ -51,7 +65,7 @@ trap cleanup EXIT
 
 "${spare[@]}" run \
   --name "$job_name" \
-  --image alpine:latest \
+  --image "$cpu_image" \
   --cpus 0.5 \
   --memory 64m \
   --shm-size 32m \
