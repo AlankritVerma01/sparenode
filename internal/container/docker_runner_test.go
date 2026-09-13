@@ -267,6 +267,18 @@ func TestWaitRejectsInvalidExitCode(t *testing.T) {
 	}
 }
 
+func TestStopUsesManagedContainerID(t *testing.T) {
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: id}}}
+	if err := Stop(context.Background(), runner, "job"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"docker", "stop", "--time", "10", id}
+	if len(runner.calls) != 2 || !reflect.DeepEqual(runner.calls[1], want) {
+		t.Fatalf("unexpected calls: %#v", runner.calls)
+	}
+}
+
 func TestLifecycleRejectsInvalidInspectMetadata(t *testing.T) {
 	runner := &scriptedRunner{results: []runResult{{output: "not-an-id true"}}}
 	if _, err := Logs(context.Background(), runner, "job", "100"); err == nil {
