@@ -40,8 +40,18 @@ func main() {
 	defer stop()
 	if err := run(ctx, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		os.Exit(processExitCode(err))
 	}
+}
+
+func processExitCode(err error) int {
+	var status interface{ ExitCode() int }
+	if errors.As(err, &status) {
+		if code := status.ExitCode(); code > 0 && code <= 255 {
+			return code
+		}
+	}
+	return 1
 }
 
 func run(ctx context.Context, args []string) error {

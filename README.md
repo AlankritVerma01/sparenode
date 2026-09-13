@@ -107,8 +107,9 @@ a long-running workload.
 `spare wait` blocks until a job exits and reports its container exit code. Like
 `docker wait`, a nonzero job exit code is output data rather than a failure of
 the wait command itself. `spare exec` streams stdout and stderr as the command
-runs. Long-running `wait`, `exec`, and `logs --follow` commands continue until
-they finish or the client is interrupted.
+runs and returns that command's exit status. Long-running `wait`, `exec`, and
+`logs --follow` commands continue until they finish or the client is
+interrupted.
 
 `spare logs` returns the latest 100 lines by default to keep remote responses
 bounded. Use `--tail all` only when the complete history is intentional.

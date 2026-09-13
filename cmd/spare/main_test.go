@@ -2,10 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"testing"
 )
+
+type testExitError int
+
+func (err testExitError) Error() string { return fmt.Sprintf("exit status %d", err) }
+func (err testExitError) ExitCode() int { return int(err) }
 
 func TestParseFlagsTreatsHelpAsSuccess(t *testing.T) {
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -40,5 +47,20 @@ func TestDoctorRejectsPositionalArguments(t *testing.T) {
 	err := runDoctor(context.Background(), nil, []string{"unexpected"})
 	if err == nil || err.Error() != "doctor does not accept positional arguments" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestProcessExitCodePreservesWrappedStatus(t *testing.T) {
+	err := fmt.Errorf("remote command failed: %w", testExitError(17))
+	if code := processExitCode(err); code != 17 {
+		t.Fatalf("got exit code %d, want 17", code)
+	}
+}
+
+func TestProcessExitCodeDefaultsToOne(t *testing.T) {
+	for _, err := range []error{errors.New("ordinary failure"), testExitError(-1), testExitError(256)} {
+		if code := processExitCode(err); code != 1 {
+			t.Fatalf("got exit code %d for %v, want 1", code, err)
+		}
 	}
 }

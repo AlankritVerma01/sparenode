@@ -92,6 +92,16 @@ if [[ "$environment" != "ready" ]]; then
   exit 1
 fi
 
+if "${spare[@]}" exec "$job_name" sh -c 'exit 17' >/dev/null 2>&1; then
+  exec_status=0
+else
+  exec_status=$?
+fi
+if [[ "$exec_status" -ne 17 ]]; then
+  echo "Exec did not preserve the container command status: $exec_status" >&2
+  exit 1
+fi
+
 host_ip="$("${docker_command[@]}" inspect --format '{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostIp}}' "$job_name")"
 if [[ "$host_ip" != "127.0.0.1" ]]; then
   echo "Published port is not loopback-only: $host_ip" >&2
