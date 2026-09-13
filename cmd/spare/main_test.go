@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"testing"
 )
 
@@ -61,6 +62,28 @@ func TestProcessExitCodeDefaultsToOne(t *testing.T) {
 	for _, err := range []error{errors.New("ordinary failure"), testExitError(-1), testExitError(256)} {
 		if code := processExitCode(err); code != 1 {
 			t.Fatalf("got exit code %d for %v, want 1", code, err)
+		}
+	}
+}
+
+func TestResolvedVersionUsesModuleVersionForGoInstall(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v0.1.0-alpha.8"}}
+	if got := resolvedVersion("dev", info); got != "0.1.0-alpha.8" {
+		t.Fatalf("got version %q", got)
+	}
+}
+
+func TestResolvedVersionPreservesLinkerVersion(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v9.9.9"}}
+	if got := resolvedVersion("0.1.0-alpha.8", info); got != "0.1.0-alpha.8" {
+		t.Fatalf("got version %q", got)
+	}
+}
+
+func TestResolvedVersionLeavesDevelopmentBuildAlone(t *testing.T) {
+	for _, info := range []*debug.BuildInfo{nil, {}, {Main: debug.Module{Version: "(devel)"}}} {
+		if got := resolvedVersion("dev", info); got != "dev" {
+			t.Fatalf("got version %q", got)
 		}
 	}
 }

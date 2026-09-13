@@ -26,7 +26,14 @@ Download the archive for your Linux node or Mac client from
 it, then place `spare` somewhere in your `PATH`. The project does not publish a
 remote install script.
 
-Build from source with Go 1.27 or newer:
+With Go 1.27 or newer, install the latest published version through the standard
+Go toolchain:
+
+```console
+go install github.com/AlankritVerma01/sparenode/cmd/spare@latest
+```
+
+Or build the current checkout from source:
 
 ```console
 make check

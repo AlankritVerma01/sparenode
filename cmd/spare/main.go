@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -23,6 +24,18 @@ var (
 	version = "dev"
 	commit  = "unknown"
 )
+
+func init() {
+	info, _ := debug.ReadBuildInfo()
+	version = resolvedVersion(version, info)
+}
+
+func resolvedVersion(current string, info *debug.BuildInfo) string {
+	if current != "dev" || info == nil || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return current
+	}
+	return strings.TrimPrefix(info.Main.Version, "v")
+}
 
 type stringList []string
 
