@@ -1,18 +1,20 @@
-# Node setup
+# Set up a node
 
-This document describes the current prototype. SpareNode publishes versioned
-binaries, but does not yet ship a node installer.
+A SpareNode node is a Linux machine running Docker. The `spare` binary uses the
+Docker daemon locally; remote clients reach that binary through SSH.
 
-## Requirements
+## 1. Install the existing tools
 
-- A Linux host reachable through OpenSSH
-- Docker Engine
-- The SpareNode binary available as `spare` in the remote user's `PATH`
-- For GPU jobs, a working NVIDIA driver and NVIDIA Container Toolkit
+Install:
 
-Install the matching Linux archive from
-[GitHub Releases](https://github.com/AlankritVerma01/sparenode/releases), or
-build and install the current checkout:
+- [Docker Engine](https://docs.docker.com/engine/install/)
+- an NVIDIA driver and
+  [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+  if you want GPU jobs
+- the matching Linux archive from
+  [SpareNode releases](https://github.com/AlankritVerma01/sparenode/releases)
+
+Place `spare` in the remote user's `PATH`. To install a local build instead:
 
 ```console
 make check
@@ -20,148 +22,104 @@ make build
 sudo install -o root -g root -m 0755 bin/spare /usr/local/bin/spare
 ```
 
-## Docker permission boundary
+## 2. Allow the node owner to use Docker
 
-The account running `spare rpc` must be able to use the Docker daemon. On many
-Linux installations that means membership in the `docker` group.
-
-Docker access is effectively root access: a user who can create arbitrary
-containers can mount host paths and modify the host. SpareNode therefore does
-not add users to this group automatically. During the prototype phase, grant
-this permission only to a node owner you already trust completely.
-
-After changing group membership, start a new login session before testing.
-
-For an owner-operated node using Docker's standard Unix socket, the explicit
-setup is:
+On Docker installations that use the standard Unix socket:
 
 ```console
 sudo usermod -aG docker "$USER"
-# Log out completely, then log back in.
+```
+
+Log out completely and log back in, then run:
+
+```console
 docker info
 ```
 
-Do not grant this membership to an untrusted or shared account. If several
-people will use a node, keep one trusted node account and control who can reach
-it through SSH policy instead of treating the Docker group as a multi-user
-sandbox.
+Membership in the Docker group is effectively root access. Grant it only to
+the trusted owner account that runs SpareNode.
 
-## SSH
+## 3. Make SSH private
 
-Use standard OpenSSH key authentication and host verification. SpareNode does
-not alter `sshd_config`, generate permanent host keys, open firewall ports, or
-enable password authentication.
+Use an SSH setup you already trust. Regular OpenSSH with key authentication is
+supported. Do not expose password-based SSH to the internet for SpareNode.
 
-Confirm ordinary SSH works first:
+[Tailscale SSH](https://tailscale.com/docs/features/tailscale-ssh) is a simple
+option that does not require a public port. SpareNode does not install or manage
+Tailscale; it still calls the standard `ssh` client.
 
-```console
-ssh dev@gpu-node spare version
-```
-
-Then use the client transport:
-
-```console
-spare --host dev@gpu-node doctor --require-gpu --data-path /data
-```
-
-Use `--require-gpu` for a GPU node; omit it for an intentional CPU-only node.
-
-### Optional private access with Tailscale SSH
-
-[Tailscale SSH](https://tailscale.com/docs/features/tailscale-ssh) is one way to
-reach a node without opening SSH to the public internet or maintaining a
-custom VPN. It is optional; SpareNode still uses the system `ssh` client and
-does not link to or manage Tailscale.
-
-On Omarchy, install the official distribution package through Omarchy's package
-helper:
+On Omarchy:
 
 ```console
 omarchy pkg add tailscale
 ```
 
-On another Arch Linux installation, install the same
-[distribution package](https://archlinux.org/packages/extra/x86_64/tailscale/)
-directly:
+On other Arch Linux systems:
 
 ```console
 sudo pacman -S tailscale
 ```
 
-Then enable the service and join the tailnet:
+Then:
 
 ```console
 sudo systemctl enable --now tailscaled
 sudo tailscale up --ssh
 ```
 
-The final command prints an authentication URL. Join the client machine to the
-same tailnet, review the tailnet's SSH access policy, and verify the connection
-before using SpareNode:
+Open the authentication URL, join the client computer to the same tailnet, and
+confirm the connection:
 
 ```console
 ssh dev@gpu-node spare version
+```
+
+Use the node's Tailscale name or private IP in place of `gpu-node`.
+
+## 4. Check the node
+
+Choose a data directory owned by the node account and run:
+
+```console
+spare doctor --require-gpu --data-path /data
+```
+
+For a CPU-only node, omit `--require-gpu`.
+
+From the client, repeat the check through SSH:
+
+```console
 spare --host dev@gpu-node doctor --require-gpu --data-path /data
 ```
 
-Tailscale SSH runs its own SSH server for tailnet traffic, so a separate public
-OpenSSH listener is not required for this setup. Regular OpenSSH over a private
-Tailscale address remains a supported alternative.
+## Files and ports
 
-## Repository and artifact transfer
-
-SpareNode does not implement its own file synchronization. Use Git for a
-reproducible checkout on the node, or standard `rsync` over SSH for uncommitted
-work:
+SpareNode does not copy repositories. Use Git for committed work or `rsync` for
+local changes:
 
 ```console
-ssh dev@gpu-node mkdir -p /data/workspaces/app
-rsync -az --exclude .git/ ./ dev@gpu-node:/data/workspaces/app/
+rsync -az --exclude .git/ ./ dev@gpu-node:/data/projects/my-app/
 ```
 
-Copy generated artifacts back with the reverse path:
+`--workspace /data/projects/my-app` mounts that node directory at `/workspace`
+inside a job. The container can change everything in the mounted directory.
 
-```console
-rsync -az dev@gpu-node:/data/workspaces/app/output/ ./output/
-```
-
-The examples deliberately omit `--delete`; stale remote files are safer than
-silently deleting work during an early setup.
-
-Workspace paths belong to the node, not the client. For example, a repository
-at `/srv/project` on the node can back a long-running development container:
-
-```console
-spare --host dev@gpu-node run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project --publish 3000:3000 sleep infinity
-spare --host dev@gpu-node exec dev git status
-```
-
-Published ports listen only on the node's loopback interface. Keep a separate
-OpenSSH tunnel running on the client to reach one:
+Ports published with `--publish` bind only to the node's loopback interface.
+Reach them through an SSH tunnel:
 
 ```console
 ssh -N -L 3000:127.0.0.1:3000 dev@gpu-node
 ```
 
-For remote internet access, place the node on an authenticated private network
-instead of forwarding a public SSH port.
+## Final test
 
-## Acceptance test
-
-Run the GPU smoke test directly on the node:
-
-```console
-./scripts/smoke-gpu.sh
-```
-
-Then exercise the same lifecycle remotely:
+Run a complete GPU job from the client:
 
 ```console
 spare --host dev@gpu-node run --name gpu-check --image ubuntu:24.04 --gpu nvidia-smi -L
 spare --host dev@gpu-node logs --follow gpu-check
-spare --host dev@gpu-node wait --json gpu-check
-spare --host dev@gpu-node stop gpu-check
 spare --host dev@gpu-node remove gpu-check
+spare --host dev@gpu-node jobs
 ```
 
-The final `spare --host dev@gpu-node jobs` must show no leftover test jobs.
+The last command should show no remaining `gpu-check` job.
