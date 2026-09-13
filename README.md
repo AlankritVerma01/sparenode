@@ -82,7 +82,7 @@ spare --host dev@gpu-node run \
   --memory 4g \
   sleep infinity
 
-spare --host dev@gpu-node exec dev sh
+spare --host dev@gpu-node exec dev ls -la /workspace
 spare --host dev@gpu-node stop dev
 spare --host dev@gpu-node remove dev
 ```
