@@ -32,6 +32,20 @@ this permission only to a node owner you already trust completely.
 
 After changing group membership, start a new login session before testing.
 
+For an owner-operated node using Docker's standard Unix socket, the explicit
+setup is:
+
+```console
+sudo usermod -aG docker "$USER"
+# Log out completely, then log back in.
+docker info
+```
+
+Do not grant this membership to an untrusted or shared account. If several
+people will use a node, keep one trusted node account and control who can reach
+it through SSH policy instead of treating the Docker group as a multi-user
+sandbox.
+
 ## SSH
 
 Use standard OpenSSH key authentication and host verification. SpareNode does
@@ -59,12 +73,24 @@ reach a node without opening SSH to the public internet or maintaining a
 custom VPN. It is optional; SpareNode still uses the system `ssh` client and
 does not link to or manage Tailscale.
 
-On Arch Linux and Omarchy, install the official
+On Omarchy, install the official distribution package through Omarchy's package
+helper:
+
+```console
+omarchy pkg add tailscale
+```
+
+On another Arch Linux installation, install the same
 [distribution package](https://archlinux.org/packages/extra/x86_64/tailscale/)
-and enable its service:
+directly:
 
 ```console
 sudo pacman -S tailscale
+```
+
+Then enable the service and join the tailnet:
+
+```console
 sudo systemctl enable --now tailscaled
 sudo tailscale up --ssh
 ```
