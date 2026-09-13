@@ -2,7 +2,13 @@ package remote
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -86,4 +92,71 @@ func TestDecodeRequestRejectsTrailingDocument(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "trailing data") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestRunSSHStreamsRequestAndOutput(t *testing.T) {
+	argsPath, requestPath := installFakeSSH(t, 0)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command := []string{"exec", "job", "printf", "$HOME; still data"}
+
+	if err := RunSSH(context.Background(), "dev@node", command, "/tmp/ssh-config", &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if stdout.String() != "remote stdout\n" || stderr.String() != "remote stderr\n" {
+		t.Fatalf("unexpected streams: stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+
+	encoded, err := os.ReadFile(requestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := DecodeRequest(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(request.Args, command) {
+		t.Fatalf("request arguments changed: %#v", request.Args)
+	}
+
+	encodedArgs, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := "-T\n-F\n/tmp/ssh-config\ndev@node\nspare\nrpc\n"
+	if string(encodedArgs) != wantArgs {
+		t.Fatalf("unexpected SSH arguments: %q", encodedArgs)
+	}
+}
+
+func TestRunSSHPreservesRemoteExitStatus(t *testing.T) {
+	installFakeSSH(t, 17)
+	err := RunSSH(context.Background(), "node", []string{"jobs"}, "", bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+	var exitError *exec.ExitError
+	if !errors.As(err, &exitError) || exitError.ExitCode() != 17 {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func installFakeSSH(t *testing.T, exitCode int) (string, string) {
+	t.Helper()
+	directory := t.TempDir()
+	sshPath := filepath.Join(directory, "ssh")
+	argsPath := filepath.Join(directory, "args")
+	requestPath := filepath.Join(directory, "request")
+	script := `#!/bin/sh
+printf '%s\n' "$@" > "$SPARENODE_TEST_ARGS"
+cat > "$SPARENODE_TEST_REQUEST"
+printf 'remote stdout\n'
+printf 'remote stderr\n' >&2
+exit "$SPARENODE_TEST_EXIT"
+`
+	if err := os.WriteFile(sshPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("SPARENODE_TEST_ARGS", argsPath)
+	t.Setenv("SPARENODE_TEST_REQUEST", requestPath)
+	t.Setenv("SPARENODE_TEST_EXIT", strconv.Itoa(exitCode))
+	return argsPath, requestPath
 }
