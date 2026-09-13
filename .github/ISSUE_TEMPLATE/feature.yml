@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a focused improvement to the existing workflow
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete workflow that is difficult or impossible today.
+    validations:
+      required: true
+  - type: textarea
+    id: current-tools
+    attributes:
+      label: Existing tools considered
+      description: Could OpenSSH, Docker, OCI/CDI, Git, rsync, Compose, or Dev Containers solve this without new SpareNode machinery?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Explain the smallest change that would solve the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Tradeoffs
+      description: Note security, compatibility, or maintenance costs.

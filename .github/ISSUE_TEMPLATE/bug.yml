@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a reproducible problem with SpareNode
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve SpareNode. Remove secrets, access tokens, hostnames, and private paths from all output.
+  - type: input
+    id: version
+    attributes:
+      label: SpareNode version
+      description: Run `spare version` on both the client and node if they differ.
+      placeholder: 0.1.0-alpha.8
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the client OS, node OS, Docker version, and GPU model when relevant.
+      placeholder: |
+        Client: macOS 15 arm64
+        Node: Arch Linux amd64
+        Docker: 29.0
+        GPU: NVIDIA GeForce GTX 1650
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest sequence of commands that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized output
+      description: Include relevant output from `spare doctor --json` when possible.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, tokens, private hostnames, and other sensitive data.
+          required: true
