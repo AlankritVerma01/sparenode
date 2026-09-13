@@ -3,6 +3,8 @@ package doctor
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -141,4 +143,38 @@ func TestRunCanRequireGPU(t *testing.T) {
 		}
 	}
 	t.Fatal("NVIDIA check missing")
+}
+
+func TestRunInspectsStorageDirectory(t *testing.T) {
+	dataPath := t.TempDir()
+	runner := fakeRunner{
+		results: map[string]commandResult{
+			"df -P -B1 " + dataPath: {output: "Filesystem 1-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /data"},
+		},
+	}
+	report := Run(context.Background(), runner, Options{DataPath: dataPath})
+	if report.Storage == nil || report.Storage.Path != dataPath || report.Storage.AvailableBytes != 750 {
+		t.Fatalf("unexpected storage result: %#v", report.Storage)
+	}
+}
+
+func TestRunRejectsFileAsDataPath(t *testing.T) {
+	dataPath := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(dataPath, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report := Run(context.Background(), fakeRunner{}, Options{DataPath: dataPath})
+	check := report.Checks[len(report.Checks)-1]
+	if check.Status != Fail || check.Summary != "Data path is not a directory" {
+		t.Fatalf("unexpected storage check: %#v", check)
+	}
+}
+
+func TestRunRejectsMissingDataPath(t *testing.T) {
+	dataPath := filepath.Join(t.TempDir(), "missing")
+	report := Run(context.Background(), fakeRunner{}, Options{DataPath: dataPath})
+	check := report.Checks[len(report.Checks)-1]
+	if check.Status != Fail || check.Summary != "Data path unavailable" || check.Detail == "" {
+		t.Fatalf("unexpected storage check: %#v", check)
+	}
 }

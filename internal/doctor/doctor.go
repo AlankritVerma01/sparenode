@@ -135,8 +135,12 @@ func Run(ctx context.Context, runner execx.Runner, options Options) Report {
 	}
 
 	if options.DataPath != "" {
-		output, err := runner.Run(ctx, "df", "-P", "-B1", options.DataPath)
+		info, err := os.Stat(options.DataPath)
 		if err != nil {
+			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Data path unavailable", Detail: err.Error()})
+		} else if !info.IsDir() {
+			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Data path is not a directory"})
+		} else if output, err := runner.Run(ctx, "df", "-P", "-B1", options.DataPath); err != nil {
 			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Data path unavailable", Detail: output})
 		} else if storage, err := parseDF(options.DataPath, output); err != nil {
 			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Could not inspect data path", Detail: err.Error()})
