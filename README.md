@@ -111,6 +111,12 @@ account. SpareNode never mounts a path implicitly.
 optional for an owner-operated node and should be set before sharing access to
 a long-running workload.
 
+`--user` passes Docker's standard user specification to the container. For a
+development workspace, using the node repository owner's numeric `UID:GID`
+prevents tools in the container from creating root-owned files. Omit it when an
+image requires its default user. Obtain the IDs with `id -u` and `id -g` on the
+node; IDs from a remote client such as a Mac may differ.
+
 `spare wait` blocks until a job exits and reports its container exit code. Like
 `docker wait`, a nonzero job exit code is output data rather than a failure of
 the wait command itself. `spare exec` streams stdout and stderr as the command

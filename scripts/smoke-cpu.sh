@@ -31,6 +31,8 @@ if "${docker_command[@]}" inspect "$job_name" >/dev/null 2>&1; then
 fi
 
 workspace_dir="$(mktemp -d)"
+node_uid="$(id -u)"
+node_gid="$(id -g)"
 started=false
 cleanup() {
   if [[ "$started" == true ]]; then
@@ -52,6 +54,7 @@ trap cleanup EXIT
   --image alpine:latest \
   --cpus 0.5 \
   --memory 64m \
+  --user "$node_uid:$node_gid" \
   --workspace "$workspace_dir" \
   --env SPARENODE_SMOKE=ready \
   --publish :8080 \
@@ -89,6 +92,12 @@ fi
 environment="$("${spare[@]}" exec "$job_name" printenv SPARENODE_SMOKE)"
 if [[ "$environment" != "ready" ]]; then
   echo "Unexpected container environment: $environment" >&2
+  exit 1
+fi
+
+identity="$("${spare[@]}" exec "$job_name" sh -c 'printf "%s:%s" "$(id -u)" "$(id -g)"')"
+if [[ "$identity" != "$node_uid:$node_gid" ]]; then
+  echo "Unexpected container identity: $identity" >&2
   exit 1
 fi
 

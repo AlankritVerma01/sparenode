@@ -12,7 +12,7 @@ body:
     attributes:
       label: SpareNode version
       description: Run `spare version` on both the client and node if they differ.
-      placeholder: 0.1.0-alpha.8
+      placeholder: SpareNode 0.x.y (commit abcdef123456)
     validations:
       required: true
   - type: textarea

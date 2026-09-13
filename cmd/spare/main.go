@@ -361,6 +361,7 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 	gpu := flags.Bool("gpu", false, "attach all NVIDIA GPUs")
 	cpus := flags.String("cpus", "", "Docker CPU limit, such as 2 or 0.5")
 	memory := flags.String("memory", "", "Docker memory limit, such as 4g or 512m")
+	user := flags.String("user", "", "container user or UID[:GID]")
 	workspace := flags.String("workspace", "", "host directory mounted at /workspace")
 	var environment stringList
 	var publish stringList
@@ -374,7 +375,7 @@ func runJob(ctx context.Context, runner execx.Runner, args []string) error {
 		return errors.New("run requires --name and --image")
 	}
 	id, err := container.Start(ctx, runner, container.Job{
-		Name: *name, Image: *image, GPU: *gpu, CPUs: *cpus, Memory: *memory,
+		Name: *name, Image: *image, GPU: *gpu, CPUs: *cpus, Memory: *memory, User: *user,
 		Workspace: *workspace, Env: environment, Publish: publish, Command: flags.Args(),
 	})
 	if err != nil {
@@ -390,7 +391,7 @@ func usage() {
 Usage:
   spare [--host USER@NODE] COMMAND
   spare doctor [--json] [--data-path PATH]
-  spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
+  spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--user USER[:GROUP]] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
   spare jobs [--json]
   spare logs [--follow] [--tail N|all] NAME
   spare exec NAME COMMAND...
