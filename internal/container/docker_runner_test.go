@@ -188,21 +188,29 @@ func TestFollowLogsStreamsManagedContainer(t *testing.T) {
 
 func TestExecManagedContainerWithoutShellExpansion(t *testing.T) {
 	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
-	runner := &scriptedRunner{results: []runResult{{output: id + " true"}, {output: "$HOME; still data"}}}
+	runner := &streamingRunner{
+		scriptedRunner: scriptedRunner{results: []runResult{{output: id + " true"}}},
+		stdout:         "$HOME; still data\n",
+		stderr:         "warning\n",
+	}
 	command := []string{"printf", "%s", "$HOME; rm -rf /"}
-	output, err := Exec(context.Background(), runner, "job", command)
-	if err != nil {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if err := StreamExec(context.Background(), runner, "job", command, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"docker", "exec", id, "printf", "%s", "$HOME; rm -rf /"}
-	if output != "$HOME; still data" || len(runner.calls) != 2 || !reflect.DeepEqual(runner.calls[1], want) {
-		t.Fatalf("unexpected result: output=%q calls=%#v", output, runner.calls)
+	want := []string{"exec", id, "printf", "%s", "$HOME; rm -rf /"}
+	if runner.stream.name != "docker" || !reflect.DeepEqual(runner.stream.args, want) {
+		t.Fatalf("unexpected stream call: %#v", runner.stream)
+	}
+	if stdout.String() != "$HOME; still data\n" || stderr.String() != "warning\n" {
+		t.Fatalf("unexpected streams: stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 
 func TestExecRequiresCommandBeforeInspecting(t *testing.T) {
-	runner := &scriptedRunner{}
-	if _, err := Exec(context.Background(), runner, "job", nil); err == nil {
+	runner := &streamingRunner{}
+	if err := StreamExec(context.Background(), runner, "job", nil, io.Discard, io.Discard); err == nil {
 		t.Fatal("expected an error")
 	}
 	if len(runner.calls) != 0 {
@@ -212,12 +220,29 @@ func TestExecRequiresCommandBeforeInspecting(t *testing.T) {
 
 func TestExecRefusesUnmanagedContainer(t *testing.T) {
 	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
-	runner := &scriptedRunner{results: []runResult{{output: id + " false"}}}
-	if _, err := Exec(context.Background(), runner, "database", []string{"true"}); err == nil {
+	runner := &streamingRunner{scriptedRunner: scriptedRunner{results: []runResult{{output: id + " false"}}}}
+	if err := StreamExec(context.Background(), runner, "database", []string{"true"}, io.Discard, io.Discard); err == nil {
 		t.Fatal("expected an error")
 	}
 	if len(runner.calls) != 1 {
 		t.Fatalf("exec should stop after inspection: %#v", runner.calls)
+	}
+}
+
+func TestExecReturnsStreamingFailure(t *testing.T) {
+	id := "1b2e6485a0f717036eb2172b8549d8ab3a34e531c9a29c5102a47370843c0aab"
+	runner := &streamingRunner{
+		scriptedRunner: scriptedRunner{results: []runResult{{output: id + " true"}}},
+		stderr:         "command failed\n",
+		err:            errors.New("exit status 17"),
+	}
+	var stderr bytes.Buffer
+	err := StreamExec(context.Background(), runner, "job", []string{"false"}, io.Discard, &stderr)
+	if err == nil || err.Error() != "execute in job: exit status 17" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr.String() != "command failed\n" {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
 	}
 }
 

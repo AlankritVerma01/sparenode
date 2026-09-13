@@ -93,14 +93,7 @@ func runLocal(ctx context.Context, args []string) error {
 		if len(args) < 3 {
 			return errors.New("exec requires a job name and command")
 		}
-		output, err := container.Exec(ctx, runner, args[1], args[2:])
-		if err != nil {
-			return err
-		}
-		if output != "" {
-			fmt.Println(output)
-		}
-		return nil
+		return container.StreamExec(ctx, runner, args[1], args[2:], os.Stdout, os.Stderr)
 	case "wait":
 		return runWait(ctx, runner, args[1:])
 	case "stop":

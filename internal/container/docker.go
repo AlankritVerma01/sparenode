@@ -173,20 +173,19 @@ func buildLogArgs(id, tail string, follow bool) []string {
 	return append(args, id)
 }
 
-func Exec(ctx context.Context, runner execx.Runner, name string, command []string) (string, error) {
+func StreamExec(ctx context.Context, runner execx.StreamingRunner, name string, command []string, stdout, stderr io.Writer) error {
 	if len(command) == 0 {
-		return "", fmt.Errorf("exec requires a command")
+		return fmt.Errorf("exec requires a command")
 	}
 	id, err := managedContainerID(ctx, runner, name)
 	if err != nil {
-		return "", err
+		return err
 	}
 	args := append([]string{"exec", id}, command...)
-	output, err := runner.Run(ctx, "docker", args...)
-	if err != nil {
-		return "", fmt.Errorf("execute in job: %s: %w", output, err)
+	if err := runner.Stream(ctx, stdout, stderr, "docker", args...); err != nil {
+		return fmt.Errorf("execute in job: %w", err)
 	}
-	return output, nil
+	return nil
 }
 
 func Wait(ctx context.Context, runner execx.Runner, name string) (int, error) {
