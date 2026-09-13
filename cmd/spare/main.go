@@ -90,36 +90,17 @@ func runLocal(ctx context.Context, args []string) error {
 	case "logs":
 		return runLogs(ctx, runner, args[1:])
 	case "exec":
-		if len(args) < 3 {
-			return errors.New("exec requires a job name and command")
-		}
-		return container.StreamExec(ctx, runner, args[1], args[2:], os.Stdout, os.Stderr)
+		return runExec(ctx, runner, args[1:])
 	case "wait":
 		return runWait(ctx, runner, args[1:])
 	case "stop":
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		name, err := requireJobName("stop", args[1:])
-		if err != nil {
-			return err
-		}
-		if err := container.Stop(ctx, runner, name); err != nil {
-			return err
-		}
-		fmt.Printf("Stopped %s\n", name)
-		return nil
+		return runStop(ctx, runner, args[1:])
 	case "remove":
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		name, err := requireJobName("remove", args[1:])
-		if err != nil {
-			return err
-		}
-		if err := container.Remove(ctx, runner, name); err != nil {
-			return err
-		}
-		fmt.Printf("Removed %s\n", name)
-		return nil
+		return runRemove(ctx, runner, args[1:])
 	case "version", "--version", "-v":
 		return runVersion(args[1:])
 	case "help", "--help", "-h":
@@ -131,7 +112,7 @@ func runLocal(ctx context.Context, args []string) error {
 }
 
 func runVersion(args []string) error {
-	flags := flag.NewFlagSet("version", flag.ContinueOnError)
+	flags := commandFlags("version", "spare version [--json]")
 	jsonOutput := flags.Bool("json", false, "emit JSON")
 	help, err := parseFlags(flags, args)
 	if err != nil || help {
@@ -157,6 +138,15 @@ func requireJobName(command string, args []string) (string, error) {
 	return args[0], nil
 }
 
+func commandFlags(name, usageLine string) *flag.FlagSet {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s\n", usageLine)
+		flags.PrintDefaults()
+	}
+	return flags
+}
+
 func parseFlags(flags *flag.FlagSet, args []string) (bool, error) {
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -168,7 +158,7 @@ func parseFlags(flags *flag.FlagSet, args []string) (bool, error) {
 }
 
 func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
-	flags := flag.NewFlagSet("jobs", flag.ContinueOnError)
+	flags := commandFlags("jobs", "spare jobs [--json]")
 	jsonOutput := flags.Bool("json", false, "emit JSON")
 	help, err := parseFlags(flags, args)
 	if err != nil || help {
@@ -205,7 +195,7 @@ func runJobs(ctx context.Context, runner execx.Runner, args []string) error {
 }
 
 func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) error {
-	flags := flag.NewFlagSet("logs", flag.ContinueOnError)
+	flags := commandFlags("logs", "spare logs [--follow] [--tail N|all] NAME")
 	follow := flags.Bool("follow", false, "stream new log output")
 	tail := flags.String("tail", "100", "number of historical lines, or all")
 	help, err := parseFlags(flags, args)
@@ -229,8 +219,20 @@ func runLogs(ctx context.Context, runner execx.StreamingRunner, args []string) e
 	return nil
 }
 
+func runExec(ctx context.Context, runner execx.StreamingRunner, args []string) error {
+	flags := commandFlags("exec", "spare exec NAME COMMAND...")
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
+		return err
+	}
+	if flags.NArg() < 2 {
+		return errors.New("exec requires a job name and command")
+	}
+	return container.StreamExec(ctx, runner, flags.Arg(0), flags.Args()[1:], os.Stdout, os.Stderr)
+}
+
 func runWait(ctx context.Context, runner execx.Runner, args []string) error {
-	flags := flag.NewFlagSet("wait", flag.ContinueOnError)
+	flags := commandFlags("wait", "spare wait [--json] NAME")
 	jsonOutput := flags.Bool("json", false, "emit JSON")
 	help, err := parseFlags(flags, args)
 	if err != nil || help {
@@ -256,12 +258,15 @@ func runWait(ctx context.Context, runner execx.Runner, args []string) error {
 }
 
 func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
-	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	flags := commandFlags("doctor", "spare doctor [--json] [--data-path PATH]")
 	jsonOutput := flags.Bool("json", false, "emit JSON")
 	dataPath := flags.String("data-path", "", "inspect a persistent data path")
 	help, err := parseFlags(flags, args)
 	if err != nil || help {
 		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("doctor does not accept positional arguments")
 	}
 
 	report := doctor.Run(ctx, runner, *dataPath)
@@ -292,8 +297,42 @@ func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 	return nil
 }
 
+func runStop(ctx context.Context, runner execx.Runner, args []string) error {
+	flags := commandFlags("stop", "spare stop NAME")
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
+		return err
+	}
+	name, err := requireJobName("stop", flags.Args())
+	if err != nil {
+		return err
+	}
+	if err := container.Stop(ctx, runner, name); err != nil {
+		return err
+	}
+	fmt.Printf("Stopped %s\n", name)
+	return nil
+}
+
+func runRemove(ctx context.Context, runner execx.Runner, args []string) error {
+	flags := commandFlags("remove", "spare remove NAME")
+	help, err := parseFlags(flags, args)
+	if err != nil || help {
+		return err
+	}
+	name, err := requireJobName("remove", flags.Args())
+	if err != nil {
+		return err
+	}
+	if err := container.Remove(ctx, runner, name); err != nil {
+		return err
+	}
+	fmt.Printf("Removed %s\n", name)
+	return nil
+}
+
 func runJob(ctx context.Context, runner execx.Runner, args []string) error {
-	flags := flag.NewFlagSet("run", flag.ContinueOnError)
+	flags := commandFlags("run", "spare run --name NAME --image IMAGE [OPTIONS] [COMMAND...]")
 	name := flags.String("name", "", "unique job name")
 	image := flags.String("image", "", "container image")
 	gpu := flags.Bool("gpu", false, "attach all NVIDIA GPUs")
