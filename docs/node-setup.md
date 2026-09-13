@@ -80,6 +80,26 @@ Tailscale SSH runs its own SSH server for tailnet traffic, so a separate public
 OpenSSH listener is not required for this setup. Regular OpenSSH over a private
 Tailscale address remains a supported alternative.
 
+## Repository and artifact transfer
+
+SpareNode does not implement its own file synchronization. Use Git for a
+reproducible checkout on the node, or standard `rsync` over SSH for uncommitted
+work:
+
+```console
+ssh dev@gpu-node mkdir -p /data/workspaces/app
+rsync -az --exclude .git/ ./ dev@gpu-node:/data/workspaces/app/
+```
+
+Copy generated artifacts back with the reverse path:
+
+```console
+rsync -az dev@gpu-node:/data/workspaces/app/output/ ./output/
+```
+
+The examples deliberately omit `--delete`; stale remote files are safer than
+silently deleting work during an early setup.
+
 Workspace paths belong to the node, not the client. For example, a repository
 at `/srv/project` on the node can back a long-running development container:
 

@@ -11,6 +11,14 @@ explicitly managed Docker jobs, and controls them through an existing OpenSSH
 connection. Sharing and a graphical control plane come after this CLI workflow
 is reliable across separate machines.
 
+```text
+Mac or other client ── OpenSSH ──> spare rpc on Linux ──> Docker ──> GPU + workspace
+```
+
+SpareNode has no background daemon, web server, user database, or custom
+network protocol. The same binary runs on the client and node; Docker owns the
+container lifecycle and OpenSSH owns transport and authentication.
+
 ## Install
 
 Download the archive for your Linux node or Mac client from
@@ -26,33 +34,52 @@ make build
 sudo install -o root -g root -m 0755 bin/spare /usr/local/bin/spare
 ```
 
-## Current commands
+## Quick start
+
+Check the Linux node locally first:
 
 ```console
 spare version --json
 spare doctor --data-path "$HOME/Data"
 spare doctor --json --data-path "$HOME/Data"
-spare run --name hello --image alpine:latest echo hello
+```
+
+Run a disposable batch job and collect its result:
+
+```console
 spare run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
-spare run --name dev --image ubuntu:24.04 --cpus 2 --memory 4g --workspace /srv/project --env MODE=dev --publish 3000:3000 sleep infinity
-spare jobs
-spare jobs --json
-spare logs --tail all cuda-check
-spare logs --follow --tail 20 cuda-check
-spare exec dev git status
-spare wait --json hello
-spare stop cuda-check
+spare logs --follow cuda-check
+spare wait --json cuda-check
 spare remove cuda-check
 ```
 
-Run the same commands on a node already configured in OpenSSH:
+Run the same lifecycle from a client after ordinary SSH access works:
 
 ```console
 spare --host dev@gpu-node doctor --data-path /data
-spare --host dev@gpu-node run --name hello --image alpine:latest echo hello
-spare --host dev@gpu-node logs hello
+spare --host dev@gpu-node run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
+spare --host dev@gpu-node logs --follow cuda-check
+spare --host dev@gpu-node wait --json cuda-check
+spare --host dev@gpu-node remove cuda-check
+```
+
+For a long-running development sandbox, mount a repository that already exists
+on the node and set explicit resource limits:
+
+```console
+spare --host dev@gpu-node run \
+  --name dev \
+  --image ubuntu:24.04 \
+  --cpus 2 \
+  --memory 4g \
+  --workspace /srv/project \
+  --env MODE=dev \
+  --publish 3000:3000 \
+  sleep infinity
 spare --host dev@gpu-node exec dev git status
-spare --host dev@gpu-node wait --json hello
+spare --host dev@gpu-node jobs --json
+spare --host dev@gpu-node stop dev
+spare --host dev@gpu-node remove dev
 ```
 
 SpareNode delegates authentication, host verification, proxies, and private
