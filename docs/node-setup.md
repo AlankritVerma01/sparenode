@@ -47,8 +47,10 @@ ssh dev@gpu-node spare version
 Then use the client transport:
 
 ```console
-spare --host dev@gpu-node doctor --data-path /data
+spare --host dev@gpu-node doctor --require-gpu --data-path /data
 ```
+
+Use `--require-gpu` for a GPU node; omit it for an intentional CPU-only node.
 
 ### Optional private access with Tailscale SSH
 
@@ -73,7 +75,7 @@ before using SpareNode:
 
 ```console
 ssh dev@gpu-node spare version
-spare --host dev@gpu-node doctor --data-path /data
+spare --host dev@gpu-node doctor --require-gpu --data-path /data
 ```
 
 Tailscale SSH runs its own SSH server for tailnet traffic, so a separate public

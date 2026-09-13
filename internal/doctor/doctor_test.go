@@ -94,7 +94,7 @@ func TestRunDoesNotRequireNvidiaToolkitOnCPUNode(t *testing.T) {
 			"docker version --format {{.Server.Version}}": {output: "29.0"},
 		},
 	}
-	report := Run(context.Background(), runner, "")
+	report := Run(context.Background(), runner, Options{})
 	for _, check := range report.Checks {
 		if check.Name == "gpu-containers" {
 			t.Fatalf("unexpected GPU container check: %#v", check)
@@ -112,11 +112,33 @@ func TestRunDistinguishesDockerPermissionFailure(t *testing.T) {
 			"docker version --format {{.Server.Version}}": {output: "permission denied while connecting", err: errors.New("exit 1")},
 		},
 	}
-	report := Run(context.Background(), runner, "")
+	report := Run(context.Background(), runner, Options{})
 	if report.Checks[1].Summary != "Docker access denied" {
 		t.Fatalf("unexpected Docker result: %#v", report.Checks[1])
 	}
 	if !strings.Contains(report.Checks[1].Detail, "effective root privileges") || !strings.Contains(report.Checks[1].Detail, "node-setup.md") {
 		t.Fatalf("permission failure should explain the security boundary: %#v", report.Checks[1])
 	}
+}
+
+func TestRunCanRequireGPU(t *testing.T) {
+	runner := fakeRunner{
+		paths: map[string]bool{"docker": true},
+		results: map[string]commandResult{
+			"docker version --format {{.Server.Version}}": {output: "29.0"},
+		},
+	}
+	report := Run(context.Background(), runner, Options{RequireGPU: true})
+	if report.Healthy() {
+		t.Fatal("required GPU failure should make the report unhealthy")
+	}
+	for _, check := range report.Checks {
+		if check.Name == "nvidia" {
+			if check.Status != Fail || check.Summary != "Required NVIDIA GPU tooling not detected" {
+				t.Fatalf("unexpected NVIDIA result: %#v", check)
+			}
+			return
+		}
+	}
+	t.Fatal("NVIDIA check missing")
 }

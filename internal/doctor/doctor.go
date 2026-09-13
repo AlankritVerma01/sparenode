@@ -54,7 +54,12 @@ type Report struct {
 	Storage       *Storage  `json:"storage,omitempty"`
 }
 
-func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
+type Options struct {
+	DataPath   string
+	RequireGPU bool
+}
+
+func Run(ctx context.Context, runner execx.Runner, options Options) Report {
 	hostname, _ := os.Hostname()
 	report := Report{
 		SchemaVersion: 1,
@@ -91,7 +96,13 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 	}
 
 	if _, err := runner.LookPath("nvidia-smi"); err != nil {
-		report.Checks = append(report.Checks, Check{Name: "nvidia", Status: Warn, Summary: "No NVIDIA GPU tooling detected"})
+		status := Warn
+		summary := "No NVIDIA GPU tooling detected"
+		if options.RequireGPU {
+			status = Fail
+			summary = "Required NVIDIA GPU tooling not detected"
+		}
+		report.Checks = append(report.Checks, Check{Name: "nvidia", Status: status, Summary: summary})
 	} else {
 		output, err := runner.Run(ctx, "nvidia-smi", "--query-gpu=index,name,uuid,memory.total,driver_version", "--format=csv,noheader,nounits")
 		if err != nil {
@@ -123,11 +134,11 @@ func Run(ctx context.Context, runner execx.Runner, dataPath string) Report {
 		}
 	}
 
-	if dataPath != "" {
-		output, err := runner.Run(ctx, "df", "-P", "-B1", dataPath)
+	if options.DataPath != "" {
+		output, err := runner.Run(ctx, "df", "-P", "-B1", options.DataPath)
 		if err != nil {
 			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Data path unavailable", Detail: output})
-		} else if storage, err := parseDF(dataPath, output); err != nil {
+		} else if storage, err := parseDF(options.DataPath, output); err != nil {
 			report.Checks = append(report.Checks, Check{Name: "storage", Status: Fail, Summary: "Could not inspect data path", Detail: err.Error()})
 		} else {
 			report.Storage = &storage

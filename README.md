@@ -47,9 +47,11 @@ Check the Linux node locally first:
 
 ```console
 spare version --json
-spare doctor --data-path "$HOME/Data"
-spare doctor --json --data-path "$HOME/Data"
+spare doctor --require-gpu --data-path "$HOME/Data"
+spare doctor --json --require-gpu --data-path "$HOME/Data"
 ```
+
+Omit `--require-gpu` when intentionally configuring a CPU-only node.
 
 Run a disposable batch job and collect its result:
 
@@ -63,7 +65,7 @@ spare remove cuda-check
 Run the same lifecycle from a client after ordinary SSH access works:
 
 ```console
-spare --host dev@gpu-node doctor --data-path /data
+spare --host dev@gpu-node doctor --require-gpu --data-path /data
 spare --host dev@gpu-node run --name cuda-check --image ubuntu:24.04 --gpu nvidia-smi -L
 spare --host dev@gpu-node logs --follow cuda-check
 spare --host dev@gpu-node wait --json cuda-check

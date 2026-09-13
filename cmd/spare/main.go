@@ -281,8 +281,9 @@ func runWait(ctx context.Context, runner execx.Runner, args []string) error {
 }
 
 func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
-	flags := commandFlags("doctor", "spare doctor [--json] [--data-path PATH]")
+	flags := commandFlags("doctor", "spare doctor [--json] [--require-gpu] [--data-path PATH]")
 	jsonOutput := flags.Bool("json", false, "emit JSON")
+	requireGPU := flags.Bool("require-gpu", false, "fail unless NVIDIA GPU support is ready")
 	dataPath := flags.String("data-path", "", "inspect a persistent data path")
 	help, err := parseFlags(flags, args)
 	if err != nil || help {
@@ -292,7 +293,7 @@ func runDoctor(ctx context.Context, runner execx.Runner, args []string) error {
 		return errors.New("doctor does not accept positional arguments")
 	}
 
-	report := doctor.Run(ctx, runner, *dataPath)
+	report := doctor.Run(ctx, runner, doctor.Options{DataPath: *dataPath, RequireGPU: *requireGPU})
 	if *jsonOutput {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
@@ -390,7 +391,7 @@ func usage() {
 
 Usage:
   spare [--host USER@NODE] COMMAND
-  spare doctor [--json] [--data-path PATH]
+  spare doctor [--json] [--require-gpu] [--data-path PATH]
   spare run --name NAME --image IMAGE [--gpu] [--cpus N] [--memory SIZE] [--user USER[:GROUP]] [--workspace PATH] [--env VALUE] [--publish HOST:CONTAINER] [COMMAND...]
   spare jobs [--json]
   spare logs [--follow] [--tail N|all] NAME
