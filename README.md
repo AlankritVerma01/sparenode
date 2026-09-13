@@ -113,6 +113,10 @@ account. SpareNode never mounts a path implicitly.
 optional for an owner-operated node and should be set before sharing access to
 a long-running workload.
 
+`--shm-size` sets Docker's standard `/dev/shm` size. Increase it explicitly for
+GPU or multiprocessing workloads that need more than Docker's default shared
+memory allocation.
+
 `--user` passes Docker's standard user specification to the container. For a
 development workspace, using the node repository owner's numeric `UID:GID`
 prevents tools in the container from creating root-owned files. Omit it when an

@@ -23,6 +23,7 @@ type Job struct {
 	GPU       bool
 	CPUs      string
 	Memory    string
+	ShmSize   string
 	User      string
 	Workspace string
 	Env       []string
@@ -51,6 +52,9 @@ func BuildRunArgs(job Job) ([]string, error) {
 	}
 	if job.Memory != "" {
 		args = append(args, "--memory", job.Memory)
+	}
+	if job.ShmSize != "" {
+		args = append(args, "--shm-size", job.ShmSize)
 	}
 	if job.User != "" {
 		args = append(args, "--user", job.User)

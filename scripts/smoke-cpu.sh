@@ -54,6 +54,7 @@ trap cleanup EXIT
   --image alpine:latest \
   --cpus 0.5 \
   --memory 64m \
+  --shm-size 32m \
   --user "$node_uid:$node_gid" \
   --workspace "$workspace_dir" \
   --env SPARENODE_SMOKE=ready \
@@ -117,8 +118,8 @@ if [[ "$host_ip" != "127.0.0.1" ]]; then
   exit 1
 fi
 
-limits="$("${docker_command[@]}" inspect --format '{{.HostConfig.NanoCpus}} {{.HostConfig.Memory}}' "$job_name")"
-if [[ "$limits" != "500000000 67108864" ]]; then
+limits="$("${docker_command[@]}" inspect --format '{{.HostConfig.NanoCpus}} {{.HostConfig.Memory}} {{.HostConfig.ShmSize}}' "$job_name")"
+if [[ "$limits" != "500000000 67108864 33554432" ]]; then
   echo "Unexpected Docker resource limits: $limits" >&2
   exit 1
 fi
